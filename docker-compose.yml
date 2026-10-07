@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  pulsegrid-ai:
+    build: .
+    container_name: pulsegrid-ai-service
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Persist local snapshot cache across restarts
+      - ./.pulsegrid_cache.json:/app/.pulsegrid_cache.json
