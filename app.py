@@ -1,581 +1,370 @@
-"""
-app.py
-======
-PulseGrid AI - Autonomous Competitive Intelligence Agent & Threat Scanner
-Nebius x NVIDIA Global AI Hackathon
-Streamlit Web Application featuring Multi-Stream Live Search, Adversarial Verification,
-Trust Layer™ Confidence Matrix, and Executive Threat Dossier.
-"""
-
 import os
-import time
-from datetime import datetime
 import streamlit as st
 from dotenv import load_dotenv
 
-# Load engines
-from search_engine import (
-    run_pulsegrid_search,
-    TAVILY_API_KEY,
-    SUPABASE_URL,
-    SUPABASE_KEY,
-    _is_placeholder_key,
-    supabase_client,
-    tavily_client
-)
-from ai_engine import (
-    synthesize_threat_dossier,
-    NEBIUS_API_KEY,
-    DEFAULT_MODEL,
-    openai_client
-)
+from search_engine import run_pulsegrid_search
+from ai_engine import synthesize_threat_dossier
 
 load_dotenv()
 
 # ==============================================================================
-# Page Configuration & Modern Dark Cyber Theme
+# 1. Page Configuration & Dark Theme Styling
 # ==============================================================================
 st.set_page_config(
-    page_title="PulseGrid AI — Autonomous Threat Scanner",
+    page_title="PulseGrid AI — Competitive Threat Scanner",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom High-Tech Cyber Intelligence CSS styling
+# Executive Dark Cyber Intelligence Theme CSS
 st.markdown("""
 <style>
-    /* Dark Obsidian & NVIDIA Green Theme */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
     .stApp {
         background-color: #0b0f19;
         color: #e2e8f0;
     }
-    
-    /* Top Header Aesthetics */
-    .pulsegrid-hero {
-        background: linear-gradient(135deg, rgba(16, 24, 40, 0.9) 0%, rgba(11, 15, 25, 0.95) 100%);
-        border: 1px solid rgba(118, 185, 0, 0.3);
-        box-shadow: 0 8px 32px 0 rgba(0, 255, 136, 0.08);
-        border-radius: 12px;
-        padding: 24px;
-        margin-bottom: 24px;
-    }
-    .pulsegrid-title {
-        font-size: 2.3rem;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-        background: linear-gradient(90deg, #76b900 0%, #00ff88 50%, #00e5ff 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 4px;
-    }
-    .pulsegrid-subtitle {
-        color: #94a3b8;
-        font-size: 1.05rem;
-        font-weight: 400;
-        margin-bottom: 0px;
-    }
-    
-    /* Highlight Cards */
-    .metric-card {
-        background: #111827;
-        border: 1px solid #1f2937;
-        border-radius: 10px;
-        padding: 16px;
-        text-align: center;
-        transition: transform 0.2s, border-color 0.2s;
-    }
-    .metric-card:hover {
-        border-color: #76b900;
-        transform: translateY(-2px);
-    }
-    .metric-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #76b900;
-    }
-    .metric-label {
-        font-size: 0.85rem;
-        color: #94a3b8;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    /* Hypothesis Callout Banner */
-    .hypothesis-card {
-        background: rgba(17, 24, 39, 0.85);
-        border-left: 4px solid #76b900;
-        border-radius: 8px;
-        padding: 18px;
-        margin: 16px 0;
-        border-top: 1px solid #1f2937;
-        border-right: 1px solid #1f2937;
-        border-bottom: 1px solid #1f2937;
-    }
-    
-    /* Status Pills */
-    .pill {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-    }
-    .pill-green { background: rgba(118, 185, 0, 0.15); color: #76b900; border: 1px solid rgba(118, 185, 0, 0.4); }
-    .pill-cyan { background: rgba(0, 229, 255, 0.15); color: #00e5ff; border: 1px solid rgba(0, 229, 255, 0.4); }
-    .pill-amber { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); }
-    .pill-red { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
-    
-    /* Evidence Items */
-    .evidence-item {
-        background: #111827;
-        border: 1px solid #1f2937;
-        border-radius: 8px;
-        padding: 14px;
-        margin-bottom: 12px;
-    }
-    .evidence-item a {
-        color: #00e5ff;
-        text-decoration: none;
-        font-weight: 600;
-    }
-    .evidence-item a:hover {
-        text-decoration: underline;
+
+    /* Main Container */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1280px;
     }
 
-    /* Tabs styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+    /* Header Styling */
+    .main-header {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
     }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #111827;
-        border-radius: 6px 6px 0 0;
+
+    .main-title {
+        font-size: 2.2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+
+    .main-subtitle {
         color: #94a3b8;
-        padding: 8px 16px;
+        font-size: 1.05rem;
+        line-height: 1.5;
     }
-    .stTabs [aria-selected="true"] {
-        background-color: #1e293b !important;
-        color: #76b900 !important;
-        border-bottom: 2px solid #76b900 !important;
+
+    /* Card Component */
+    .glass-card {
+        background: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Provenance Badges */
+    .badge-primary {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-secondary {
+        background: rgba(59, 130, 246, 0.15);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-community {
+        background: rgba(168, 85, 247, 0.15);
+        color: #c084fc;
+        border: 1px solid rgba(168, 85, 247, 0.3);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Delta Signal Items */
+    .delta-item {
+        background: rgba(15, 23, 42, 0.8);
+        border-left: 4px solid #38bdf8;
+        border-radius: 4px 8px 8px 4px;
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.75rem;
+        color: #e2e8f0;
+        font-size: 0.95rem;
+    }
+
+    /* Custom Streamlit Buttons */
+    .stButton > button {
+        background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1.05rem;
+        padding: 0.65rem 1.5rem;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+        transition: all 0.2s ease-in-out;
+    }
+
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%);
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+        transform: translateY(-1px);
     }
 </style>
 """, unsafe_allow_html=True)
 
 
 # ==============================================================================
-# Session State Initialization
+# 2. Sidebar: System Health & Technical Specs
 # ==============================================================================
-if "active_scan_results" not in st.session_state:
-    st.session_state["active_scan_results"] = None
-if "active_dossier" not in st.session_state:
-    st.session_state["active_dossier"] = None
-if "watch_list" not in st.session_state:
-    st.session_state["watch_list"] = ["Cursor", "Perplexity"]
+def is_valid_key(key: str) -> bool:
+    if not key:
+        return False
+    key_clean = key.strip().lower()
+    return not any(p in key_clean for p in ["your_", "placeholder", "xxx", "change_me", "todo"])
 
 
-# ==============================================================================
-# Sidebar: System Health, Configuration & Model Settings
-# ==============================================================================
+tavily_key = os.getenv("TAVILY_API_KEY", "")
+nebius_key = os.getenv("NEBIUS_API_KEY", "")
+supabase_url = os.getenv("SUPABASE_URL", "")
+
 with st.sidebar:
-    st.markdown("### ⚡ PULSEGRID AI")
-    st.caption("Nebius x NVIDIA AI Hackathon Edition")
+    st.markdown("## ⚡ PulseGrid AI")
+    st.caption("Autonomous Competitive Intelligence Engine")
     st.markdown("---")
 
-    # API Status Indicators
-    st.markdown("#### 🔌 Integration Status")
+    st.markdown("### 🔌 System Health & Integrations")
 
-    # 1. Tavily
-    tavily_ok = not _is_placeholder_key(TAVILY_API_KEY)
-    if tavily_ok:
-        st.markdown("🟢 **Tavily Search API:** `Active`")
+    # Tavily Status
+    if is_valid_key(tavily_key):
+        st.markdown("🟢 **Tavily Search API**: Connected (4-Stream)")
     else:
-        st.markdown("🔴 **Tavily Search API:** `Missing Key (Mock Mode)`")
+        st.markdown("🔴 **Tavily Search API**: Missing Key")
 
-    # 2. Nebius Token Factory (NVIDIA Nemotron 3)
-    nebius_ok = not _is_placeholder_key(NEBIUS_API_KEY)
-    if nebius_ok:
-        st.markdown("🟢 **Nebius Token Factory:** `Active`")
+    # Nebius / NVIDIA Nemotron Status
+    if is_valid_key(nebius_key):
+        st.markdown("🟢 **Nebius Token Factory**: Connected *(Nemotron 3 Super 120B)*")
     else:
-        st.markdown("🔴 **Nebius Token Factory:** `Missing Key (Local Sim)`")
+        st.markdown("🟠 **Nebius Token Factory**: Local Preview Mode")
 
-    # 3. Supabase Cache
-    supabase_ok = not _is_placeholder_key(SUPABASE_URL) and not _is_placeholder_key(SUPABASE_KEY) and (supabase_client is not None)
-    if supabase_ok:
-        st.markdown("🟢 **Supabase Cache:** `Connected`")
+    # Supabase Status
+    if is_valid_key(supabase_url):
+        st.markdown("🟢 **Supabase Cache**: Connected *(Delta Diffing Active)*")
     else:
-        st.markdown("🟡 **Supabase Cache:** `Local JSON Cache`")
+        st.markdown("⚪ **Supabase Cache**: Offline / Memory Mode")
 
     st.markdown("---")
-
-    # Model Tier Selection
-    st.markdown("#### 🧠 Model Selection")
-    selected_model = st.selectbox(
-        "Nemotron Model Tier",
-        options=[
-            "nvidia/nemotron-3-super-120b",
-            "nvidia/nemotron-3-ultra-550b",
-            "nvidia/nemotron-3.5-lightning",
-            "nvidia/nemotron-3-nano-30b"
-        ],
-        index=0,
-        help="Powered by NVIDIA Nemotron open models hosted on Nebius Token Factory."
-    )
-
-    # Scan Controls
-    st.markdown("#### ⚙️ Scan Controls")
-    force_refresh = st.checkbox(
-        "🔄 Force Fresh Live Scan",
-        value=False,
-        help="Bypasses Supabase snapshot cache to trigger live crawl and change detection."
-    )
+    st.markdown("### 🛠️ Architecture Specs")
+    st.markdown("""
+    - **Reasoning Model**: NVIDIA Nemotron-3 Super (120B)
+    - **Inference Engine**: Nebius Token Factory
+    - **Web Retrieval**: Tavily Multi-Stream Parallel RAG
+    - **Delta Engine**: Supabase Snapshot Cache Diffing
+    - **Analysis Flow**: 3-Phase Adversarial Verification
+    """)
 
     st.markdown("---")
-
-    # Monitored Targets in Watch Mode
-    st.markdown("#### 👁️ Active Watch Mode Targets")
-    for company in st.session_state["watch_list"]:
-        st.markdown(f"- 📡 **{company}** `(Monitoring 72h)`")
-
-    st.markdown("---")
-    st.caption("PulseGrid Trust Layer™ enforces adversarial verification before generating any strategic recommendation.")
+    st.caption("PulseGrid AI v2.0 • Autonomous Threat Scanner")
 
 
 # ==============================================================================
-# Main UI Header
+# 3. Main Interface: Header & Investigation Trigger
 # ==============================================================================
 st.markdown("""
-<div class="pulsegrid-hero">
-    <div class="pulsegrid-title">⚡ PULSEGRID AI</div>
-    <div class="pulsegrid-subtitle">
-        The Autonomous Competitive Intelligence Agent That Has to <strong>Prove Its Own Conclusions</strong>.
+<div class="main-header">
+    <div class="main-title">⚡ PulseGrid AI: Autonomous Threat Scanner</div>
+    <div class="main-subtitle">
+        Scan live web streams across <b>Talent & Hiring</b>, <b>Product & Pricing</b>, <b>Customer Friction</b>, 
+        and <b>Market News</b>, then challenge findings through <b>3-Phase Adversarial Verification</b>.
     </div>
-    <p style="color: #64748b; font-size: 0.9rem; margin-top: 6px; margin-bottom: 0px;">
-        Investigate ➔ Detect ➔ Correlate ➔ Hypothesize ➔ <strong>Attack ("Prove Me Wrong")</strong> ➔ Verify ➔ Decide ➔ Watch
-    </p>
 </div>
 """, unsafe_allow_html=True)
 
+# Input Column Layout
+col1, col2 = st.columns([3, 1])
 
-# ==============================================================================
-# Search & Investigation Input Bar
-# ==============================================================================
-st.markdown("##### 🎯 Enter Target Competitor to Investigate")
-col_input, col_btn = st.columns([4, 1.2])
-
-with col_input:
-    target_company = st.text_input(
-        "Target Company",
-        placeholder="e.g. Cursor, Databricks, Perplexity, Cognition, Anthropic",
-        label_visibility="collapsed"
+with col1:
+    company_input = st.text_input(
+        "Target Company / Competitor",
+        value="",
+        placeholder="e.g. OpenAI, Anthropic, Databricks, Mistral AI, Cohere",
+        help="Enter the exact company or brand name you wish to investigate."
     )
 
-with col_btn:
-    launch_btn = st.button("🚀 Launch Investigation", use_container_width=True, type="primary")
+with col2:
+    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+    launch_btn = st.button("🚀 Launch Investigation", use_container_width=True)
 
-# Preset Quick Selector
-st.markdown("<p style='font-size: 0.82rem; color: #64748b; margin-top: -6px;'>Quick presets: </p>", unsafe_allow_html=True)
-preset_cols = st.columns([1, 1, 1, 1, 3])
-if preset_cols[0].button("Cursor", use_container_width=True):
-    target_company = "Cursor"
-    launch_btn = True
-if preset_cols[1].button("Databricks", use_container_width=True):
-    target_company = "Databricks"
-    launch_btn = True
-if preset_cols[2].button("Perplexity", use_container_width=True):
-    target_company = "Perplexity"
-    launch_btn = True
-if preset_cols[3].button("Cognition", use_container_width=True):
-    target_company = "Cognition"
-    launch_btn = True
+# Initialize Session State
+if "search_data" not in st.session_state:
+    st.session_state.search_data = None
+if "dossier_content" not in st.session_state:
+    st.session_state.dossier_content = None
+if "active_company" not in st.session_state:
+    st.session_state.active_company = ""
 
 
 # ==============================================================================
-# Investigation Execution Pipeline
+# 4. Live Progress Stepper & Investigation Execution
 # ==============================================================================
-if launch_btn:
-    if not target_company.strip():
-        st.warning("Please specify a target company name.")
-    else:
-        company_clean = target_company.strip()
-        st.markdown("---")
+if launch_btn and company_input.strip():
+    target_company = company_input.strip()
+    st.session_state.active_company = target_company
 
-        # Interactive Step-by-Step Status Box
-        with st.status(f"🔎 Investigating {company_clean} across live web and adversarial audit...", expanded=True) as status_box:
-            st.write("✓ Establishing baseline and querying snapshot cache...")
-            time.sleep(0.3)
+    with st.status(f"⚡ Investigating '{target_company}'...", expanded=True) as status:
+        # Step 1: Multi-Stream Search
+        st.write("📡 **Step 1/3**: Scanning 4 parallel Tavily web streams across Talent, Pricing, Friction, and News...")
+        search_data = run_pulsegrid_search(target_company)
+        st.session_state.search_data = search_data
 
-            st.write("✓ Scanning 4 parallel Tavily intelligence streams (Talent, Product, Friction, Market)...")
-            scan_results = run_pulsegrid_search(company_clean, force_refresh=force_refresh)
-            st.session_state["active_scan_results"] = scan_results
+        # Step 2: Delta Signals
+        st.write("🔍 **Step 2/3**: Calculating Delta Signals vs historical snapshot in Supabase cache...")
+        deltas = search_data.get("delta_highlights", [])
+        st.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ Found {len(deltas)} delta signal highlights.")
 
-            cache_note = " (Retrieved from Supabase cache)" if scan_results.get("is_cached") else " (Fresh live crawl)"
-            st.write(f"✓ Retrieved {len(scan_results.get('normalized_evidence', []))} intelligence signals{cache_note}.")
-            time.sleep(0.2)
+        # Step 3: Nemotron Adversarial Synthesis
+        st.write("🧠 **Step 3/3**: Executing Nemotron 3 Adversarial Synthesis & Verification...")
+        dossier = synthesize_threat_dossier(target_company, search_data)
+        st.session_state.dossier_content = dossier
 
-            st.write("✓ Normalizing source provenance and executing Change Engine diff...")
-            time.sleep(0.2)
-
-            st.write(f"✓ Correlating signals and synthesizing hypothesis via NVIDIA Nemotron 3 ({selected_model})...")
-            
-            # Synthesize Dossier with progress updates
-            def update_status_cb(msg: str):
-                st.write(f"→ {msg}")
-
-            dossier_data = synthesize_threat_dossier(
-                company_name=company_clean,
-                raw_streams=scan_results.get("raw_streams", []),
-                change_signals=scan_results.get("change_signals"),
-                extracted_pages=scan_results.get("extracted_pages"),
-                model=selected_model,
-                status_callback=update_status_cb
-            )
-            st.session_state["active_dossier"] = dossier_data
-
-            status_box.update(
-                label=f"✅ Intelligence Investigation Complete: {company_clean} (Confidence: {dossier_data.get('confidence_score')}%)",
-                state="complete",
-                expanded=False
-            )
+        status.update(
+            label=f"✅ Investigation Complete for {target_company}!",
+            state="complete",
+            expanded=False
+        )
 
 
 # ==============================================================================
-# Results Presentation View
+# 5. Tabbed Results Display
 # ==============================================================================
-if st.session_state.get("active_dossier") and st.session_state.get("active_scan_results"):
-    dossier = st.session_state["active_dossier"]
-    scan = st.session_state["active_scan_results"]
+if st.session_state.dossier_content and st.session_state.search_data:
+    company_name = st.session_state.active_company
+    search_data = st.session_state.search_data
+    dossier = st.session_state.dossier_content
 
-    company_name = dossier.get("company_name", "Target")
-    conf_score = dossier.get("confidence_score", 75)
-    threat_level = dossier.get("threat_level", "HIGH")
-    verdict = dossier.get("verdict", "PLAUSIBLE — REQUIRES MONITORING")
-    hypothesis = dossier.get("hypothesis", "")
-    matrix = dossier.get("confidence_matrix", {})
-    why_not = dossier.get("why_not_higher", "")
-
-    # Top Metric Highlight Grid
-    st.markdown("### 📊 Verified Intelligence Summary")
-    m_col1, m_col2, m_col3, m_col4 = st.columns(4)
-
-    with m_col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{conf_score}%</div>
-            <div class="metric-label">Calibrated Confidence</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with m_col2:
-        badge_class = "pill-red" if threat_level in ["CRITICAL", "HIGH"] else "pill-amber"
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: {'#ef4444' if threat_level in ['CRITICAL', 'HIGH'] else '#f59e0b'};">{threat_level}</div>
-            <div class="metric-label">Competitive Threat Level</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with m_col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #00e5ff;">{len(scan.get('normalized_evidence', []))}</div>
-            <div class="metric-label">Live Signals Indexed</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with m_col4:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #00ff88;">{len(dossier.get('supporting_summary', []))} / {len(dossier.get('contradicting_summary', []))}</div>
-            <div class="metric-label">Support vs Counter Signals</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # Hypothesis Highlight Banner
-    st.markdown(f"""
-    <div class="hypothesis-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span class="pill pill-cyan">Strategic Hypothesis (Unproven)</span>
-            <span class="pill pill-green">{verdict}</span>
-        </div>
-        <div style="font-size: 1.25rem; font-weight: 700; color: #f8fafc;">
-            "{hypothesis}"
-        </div>
-        <div style="margin-top: 10px; font-size: 0.88rem; color: #cbd5e1;">
-            <strong>Cross-Signal Correlation:</strong> {dossier.get('correlation_rationale', '')}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Add to Watch List Action
-    c_watch, c_space = st.columns([1.5, 4])
-    with c_watch:
-        if company_name not in st.session_state["watch_list"]:
-            if st.button(f"👁️ Watch {company_name} (Enable Persistent Diffing)", use_container_width=True):
-                st.session_state["watch_list"].append(company_name)
-                st.success(f"Added {company_name} to active 72-hour Watch Mode!")
-
-    # Tabs for In-Depth Analysis
-    tab_dossier, tab_adversarial, tab_streams, tab_change = st.tabs([
+    tab1, tab2, tab3 = st.tabs([
         "⚡ Executive Threat Dossier",
-        "🛡️ Adversarial Verification & Trust Layer™",
-        "📡 4 Live Tavily Streams",
-        "🔄 Baseline & Change Engine"
+        "🔍 Delta Signals",
+        "🌐 Evidence Ledger (Raw Streams)"
     ])
 
     # --------------------------------------------------------------------------
-    # TAB 1: EXECUTIVE THREAT DOSSIER
+    # Tab 1: Executive Threat Dossier
     # --------------------------------------------------------------------------
-    with tab_dossier:
-        st.markdown("### 📄 Full Threat Dossier")
-        st.markdown(dossier.get("dossier_markdown", ""))
+    with tab1:
+        col_header, col_download = st.columns([3, 1])
+        with col_header:
+            st.markdown(f"### 🛡️ Threat Intelligence Dossier: `{company_name}`")
+        with col_download:
+            st.download_button(
+                label="📥 Download Dossier (.md)",
+                data=dossier,
+                file_name=f"{company_name.lower()}_pulsegrid_dossier.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
 
         st.markdown("---")
-        # Download Markdown Report
-        st.download_button(
-            label="📥 Download Executive Threat Dossier (.md)",
-            data=dossier.get("dossier_markdown", ""),
-            file_name=f"{company_name.lower()}_pulsegrid_dossier.md",
-            mime="text/markdown",
-            use_container_width=False
-        )
+        st.markdown(dossier)
 
     # --------------------------------------------------------------------------
-    # TAB 2: ADVERSARIAL VERIFICATION & TRUST LAYER
+    # Tab 2: Delta Signals
     # --------------------------------------------------------------------------
-    with tab_adversarial:
-        st.markdown("### 🛡️ Adversarial 'Prove Me Wrong' Audit")
-        st.caption("PulseGrid does not trust its first answer. It executes targeted adversarial sweeps to challenge and attempt to falsify its own hypothesis.")
+    with tab2:
+        st.markdown("### 🔍 Historical Baseline Delta Highlights")
+        st.caption("New or modified signals detected since the last baseline snapshot in Supabase.")
 
-        adv_col1, adv_col2 = st.columns(2)
-
-        with adv_col1:
-            st.markdown("#### 🟢 Supporting Evidence")
-            for item in dossier.get("supporting_summary", []):
-                st.markdown(f"""
-                <div class="evidence-item" style="border-left: 3px solid #76b900;">
-                    <div style="color: #76b900; font-weight: 600; font-size: 0.9rem;">CONFIRMATORY SIGNAL</div>
-                    <div style="color: #f1f5f9; margin-top: 4px;">{item}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        with adv_col2:
-            st.markdown("#### 🔴 Contradicting Evidence ('Prove Me Wrong')")
-            for item in dossier.get("contradicting_summary", []):
-                st.markdown(f"""
-                <div class="evidence-item" style="border-left: 3px solid #ef4444;">
-                    <div style="color: #ef4444; font-weight: 600; font-size: 0.9rem;">DISCONFIRMING / COUNTER SIGNAL</div>
-                    <div style="color: #f1f5f9; margin-top: 4px;">{item}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        st.markdown("---")
-        st.markdown("#### 📊 PulseGrid Trust Layer™ Confidence Matrix")
-        
-        # Display 6-factor Confidence Breakdown in structured progress bars
-        dim_cols = st.columns(3)
-        dims = [
-            ("Evidence Strength", matrix.get("evidence_strength", 80), "Volume & depth of primary sources"),
-            ("Source Independence", matrix.get("source_independence", 75), "Cross-platform uncached signals"),
-            ("Signal Recency", matrix.get("signal_recency", 90), "Time-decay freshness score"),
-            ("Cross-Signal Correlation", matrix.get("cross_signal_correlation", 85), "Inter-stream signal synergy"),
-            ("Contradicting Evidence Weight", matrix.get("contradicting_weight", 60), "Impact of counter-theses"),
-            ("Historical Consistency", matrix.get("historical_consistency", 70), "Trajectory coherence against baseline")
-        ]
-
-        for idx, (label, val, desc) in enumerate(dims):
-            col = dim_cols[idx % 3]
-            with col:
-                st.markdown(f"**{label}** (`{val}/100`)")
-                st.progress(val / 100)
-                st.caption(desc)
-
-        st.markdown(f"""
-        <div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; padding: 12px; border-radius: 6px; margin-top: 16px;">
-            <div style="color: #f59e0b; font-weight: 700; font-size: 0.9rem;">❓ WHY NOT HIGHER CONFIDENCE?</div>
-            <div style="color: #e2e8f0; font-size: 0.95rem; margin-top: 4px;">
-                "{why_not}"
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("---")
-        st.markdown("#### 🎯 Decision Impact: 'So What?'")
-        act_col, trig_col = st.columns(2)
-        with act_col:
-            st.markdown("##### 🚀 Recommended Actions")
-            for act in dossier.get("strategic_actions", []):
-                st.markdown(f"- **{act}**")
-        with trig_col:
-            st.markdown("##### 🔭 Next Signals to Watch")
-            for trig in dossier.get("watch_triggers", []):
-                st.markdown(f"- 🎯 {trig}")
-
-    # --------------------------------------------------------------------------
-    # TAB 3: 4 LIVE TAVILY DATA STREAMS
-    # --------------------------------------------------------------------------
-    with tab_streams:
-        st.markdown("### 📡 4 Parallel Web Intelligence Streams")
-        st.caption("Live web signals collected via Tavily Search API with automated source provenance classification.")
-
-        raw_streams = scan.get("raw_streams", [])
-        for stream in raw_streams:
-            cat = stream.get("category", "Intelligence Stream")
-            results = stream.get("results", [])
-            query = stream.get("query", "")
-
-            with st.expander(f"📁 **{cat}** ({len(results)} signals)", expanded=True):
-                st.caption(f"**Query Executed:** `{query}`")
-                for r in results:
-                    title = r.get("title", "Untitled")
-                    url = r.get("url", "#")
-                    snippet = r.get("snippet", "")
-
-                    st.markdown(f"""
-                    <div class="evidence-item">
-                        <div style="display: flex; justify-content: space-between;">
-                            <a href="{url}" target="_blank">{title}</a>
-                        </div>
-                        <div style="font-size: 0.85rem; color: #94a3b8; margin: 4px 0;">{url}</div>
-                        <div style="font-size: 0.9rem; color: #cbd5e1; line-height: 1.4;">{snippet}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-        # Deep Page Extraction Section (Tavily Extract API)
-        extracted = scan.get("extracted_pages", [])
-        if extracted:
-            st.markdown("---")
-            st.markdown("#### 🔍 Deep Page Extractions (`tavily.extract`)")
-            st.caption("PulseGrid uses Tavily's Extract API to pull full, clean boilerplate-free markdown for deep document and pricing diffs.")
-            for ep in extracted:
-                with st.expander(f"📄 Full Clean Content: {ep.get('url', 'Document')}", expanded=False):
-                    st.code(ep.get("raw_content", "")[:1200] + "\n...", language="markdown")
-
-    # --------------------------------------------------------------------------
-    # TAB 4: BASELINE & CHANGE ENGINE
-    # --------------------------------------------------------------------------
-    with tab_change:
-        st.markdown("### 🔄 Baseline & Change Engine")
-        st.caption("PulseGrid establishes a baseline upon first scan and detects incremental operational drifts on subsequent passes.")
-
-        change_data = scan.get("change_signals", {})
-        is_baseline = change_data.get("is_baseline_first_scan", True)
-
-        if is_baseline:
-            st.info(f"📍 **Baseline Established for {company_name}:** This scan represents the initial state snapshot. Future scans will calculate structural diffs (e.g., net hiring shifts, pricing tier updates, forum complaint spikes).")
+        delta_signals = search_data.get("delta_highlights", [])
+        if delta_signals:
+            for signal in delta_signals:
+                st.markdown(f"<div class='delta-item'>⚡ {signal}</div>", unsafe_allow_html=True)
         else:
-            st.success(f"🔍 **Historical Comparison Active:** Compared to prior scan from `{change_data.get('previous_scan_date')}`.")
+            st.info("No delta differences detected from prior scans. Current data established as fresh baseline.")
 
-        st.markdown("#### 📈 Detected Signal Diffs")
-        for change_item in change_data.get("summary_changes", []):
-            st.markdown(f"- **{change_item}**")
+    # --------------------------------------------------------------------------
+    # Tab 3: Evidence Ledger (Raw Streams)
+    # --------------------------------------------------------------------------
+    with tab3:
+        st.markdown("### 🌐 Evidence Ledger across 4 Parallel Streams")
+        st.caption("Raw intelligence retrieved via Tavily with source provenance classification.")
 
-        st.markdown("---")
-        st.markdown("#### 👁️ Active Watch Mode Pipeline")
-        st.markdown("""
-        When a company is in **Watch Mode**, PulseGrid continuously monitors the 4 live streams and adversarial triggers:
-        1. **New Signal Detected** ➔ Compare against baseline snapshot
-        2. **Reassess Hypothesis** ➔ Calculate confidence delta (`61% → 78%`)
-        3. **Adversarial Resweep** ➔ Check if new statements dispute the move
-        4. **Alert Strategy Team** ➔ Trigger Executive Notification
-        """)
+        raw_streams = search_data.get("raw_streams", [])
+
+        if raw_streams:
+            for stream in raw_streams:
+                category = stream.get("category", "Intelligence Stream")
+                results = stream.get("results", [])
+
+                with st.expander(f"📁 {category} ({len(results)} items)", expanded=True):
+                    if not results:
+                        st.caption("No signals retrieved for this category.")
+                    else:
+                        for idx, item in enumerate(results, 1):
+                            provenance = item.get("provenance", "Secondary")
+                            badge_class = "badge-secondary"
+                            if provenance == "Primary":
+                                badge_class = "badge-primary"
+                            elif provenance == "Community":
+                                badge_class = "badge-community"
+
+                            title = item.get("title", "Untitled Signal")
+                            snippet = item.get("snippet", "No snippet available.")
+                            url = item.get("url", "#")
+
+                            st.markdown(f"""
+                            <div class="glass-card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <span style="font-weight: 600; font-size: 1rem; color: #f1f5f9;">{idx}. {title}</span>
+                                    <span class="{badge_class}">{provenance}</span>
+                                </div>
+                                <div style="color: #94a3b8; font-size: 0.9rem; line-height: 1.5; margin-bottom: 8px;">
+                                    {snippet}
+                                </div>
+                                <div>
+                                    <a href="{url}" target="_blank" style="color: #38bdf8; text-decoration: none; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;">
+                                        🔗 {url}
+                                    </a>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+        else:
+            st.info("No raw stream data available. Click 'Launch Investigation' above to scan.")
+
+elif not launch_btn:
+    st.markdown("""
+    <div style="text-align: center; padding: 4rem 1rem; color: #64748b;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">⚡</div>
+        <div style="font-size: 1.25rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.5rem;">
+            Ready to Investigate
+        </div>
+        <div>
+            Enter a target competitor above and click <b>Launch Investigation</b> to execute multi-stream threat scanning.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
