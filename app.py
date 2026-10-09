@@ -1,14 +1,33 @@
+"""
+app.py
+======
+PulseGrid AI - Autonomous Competitive Intelligence Agent & Threat Scanner
+Nebius x NVIDIA Global AI Hackathon
+Streamlit Web Application featuring Multi-Stream Live Search, Adversarial Verification,
+Source Provenance Classification, and Executive Threat Dossier.
+"""
+
 import os
 import streamlit as st
 from dotenv import load_dotenv
 
-from search_engine import run_pulsegrid_search
-from ai_engine import synthesize_threat_dossier
+from search_engine import (
+    run_pulsegrid_search,
+    TAVILY_API_KEY,
+    SUPABASE_URL,
+    supabase_client,
+    tavily_client
+)
+from ai_engine import (
+    synthesize_threat_dossier,
+    NEBIUS_API_KEY,
+    nebius_client
+)
 
 load_dotenv()
 
 # ==============================================================================
-# 1. Page Configuration & Dark Theme Styling
+# 1. Page Configuration & Executive Dark Theme
 # ==============================================================================
 st.set_page_config(
     page_title="PulseGrid AI — Competitive Threat Scanner",
@@ -17,7 +36,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Executive Dark Cyber Intelligence Theme CSS
+# Custom High-Tech Cyber Intelligence Dark Theme CSS
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -38,13 +57,13 @@ st.markdown("""
         max-width: 1280px;
     }
 
-    /* Header Styling */
+    /* Header Banner */
     .main-header {
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px;
-        padding: 2rem;
-        margin-bottom: 2rem;
+        padding: 2rem 2.2rem;
+        margin-bottom: 1.8rem;
         box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
     }
 
@@ -63,7 +82,7 @@ st.markdown("""
         line-height: 1.5;
     }
 
-    /* Card Component */
+    /* Glass Cards */
     .glass-card {
         background: rgba(30, 41, 59, 0.7);
         backdrop-filter: blur(12px);
@@ -78,7 +97,7 @@ st.markdown("""
         background: rgba(16, 185, 129, 0.15);
         color: #34d399;
         border: 1px solid rgba(16, 185, 129, 0.3);
-        padding: 2px 8px;
+        padding: 3px 9px;
         border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 600;
@@ -89,7 +108,7 @@ st.markdown("""
         background: rgba(59, 130, 246, 0.15);
         color: #60a5fa;
         border: 1px solid rgba(59, 130, 246, 0.3);
-        padding: 2px 8px;
+        padding: 3px 9px;
         border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 600;
@@ -100,25 +119,25 @@ st.markdown("""
         background: rgba(168, 85, 247, 0.15);
         color: #c084fc;
         border: 1px solid rgba(168, 85, 247, 0.3);
-        padding: 2px 8px;
+        padding: 3px 9px;
         border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 600;
         font-family: 'JetBrains Mono', monospace;
     }
 
-    /* Delta Signal Items */
+    /* Delta Signal Item */
     .delta-item {
-        background: rgba(15, 23, 42, 0.8);
+        background: rgba(15, 23, 42, 0.85);
         border-left: 4px solid #38bdf8;
         border-radius: 4px 8px 8px 4px;
-        padding: 0.85rem 1rem;
+        padding: 0.9rem 1.1rem;
         margin-bottom: 0.75rem;
-        color: #e2e8f0;
+        color: #f1f5f9;
         font-size: 0.95rem;
     }
 
-    /* Custom Streamlit Buttons */
+    /* Button Styling */
     .stButton > button {
         background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
         color: white;
@@ -141,19 +160,8 @@ st.markdown("""
 
 
 # ==============================================================================
-# 2. Sidebar: System Health & Technical Specs
+# 2. Sidebar: System Health & Integrations
 # ==============================================================================
-def is_valid_key(key: str) -> bool:
-    if not key:
-        return False
-    key_clean = key.strip().lower()
-    return not any(p in key_clean for p in ["your_", "placeholder", "xxx", "change_me", "todo"])
-
-
-tavily_key = os.getenv("TAVILY_API_KEY", "")
-nebius_key = os.getenv("NEBIUS_API_KEY", "")
-supabase_url = os.getenv("SUPABASE_URL", "")
-
 with st.sidebar:
     st.markdown("## ⚡ PulseGrid AI")
     st.caption("Autonomous Competitive Intelligence Engine")
@@ -162,39 +170,39 @@ with st.sidebar:
     st.markdown("### 🔌 System Health & Integrations")
 
     # Tavily Status
-    if is_valid_key(tavily_key):
-        st.markdown("🟢 **Tavily Search API**: Connected (4-Stream)")
+    if tavily_client is not None:
+        st.markdown("🟢 **Tavily Search API**: `Connected` (4-Stream)")
     else:
-        st.markdown("🔴 **Tavily Search API**: Missing Key")
+        st.markdown("🔴 **Tavily Search API**: `Offline` (Using Mock Data)")
 
-    # Nebius / NVIDIA Nemotron Status
-    if is_valid_key(nebius_key):
-        st.markdown("🟢 **Nebius Token Factory**: Connected *(Nemotron 3 Super 120B)*")
+    # Nebius Token Factory Status
+    if nebius_client is not None:
+        st.markdown("🟢 **Nebius Token Factory**: `Connected` (Nemotron 3 120B)")
     else:
-        st.markdown("🟠 **Nebius Token Factory**: Local Preview Mode")
+        st.markdown("🟠 **Nebius Token Factory**: `Local Preview Mode`")
 
-    # Supabase Status
-    if is_valid_key(supabase_url):
-        st.markdown("🟢 **Supabase Cache**: Connected *(Delta Diffing Active)*")
+    # Supabase Cache Status
+    if supabase_client is not None:
+        st.markdown("🟢 **Supabase Cache**: `Connected` (Snapshot Diffing)")
     else:
-        st.markdown("⚪ **Supabase Cache**: Offline / Memory Mode")
+        st.markdown("⚪ **Supabase Cache**: `Offline` (In-Memory Baseline)")
 
     st.markdown("---")
     st.markdown("### 🛠️ Architecture Specs")
     st.markdown("""
     - **Reasoning Model**: NVIDIA Nemotron-3 Super (120B)
-    - **Inference Engine**: Nebius Token Factory
-    - **Web Retrieval**: Tavily Multi-Stream Parallel RAG
-    - **Delta Engine**: Supabase Snapshot Cache Diffing
-    - **Analysis Flow**: 3-Phase Adversarial Verification
+    - **Inference Gateway**: Nebius Token Factory
+    - **Data Streams**: Tavily Multi-Stream Parallel RAG
+    - **State Engine**: Supabase Snapshot Cache Diffing
+    - **Verification**: 3-Phase "Prove Me Wrong" Sweep
     """)
 
     st.markdown("---")
-    st.caption("PulseGrid AI v2.0 • Autonomous Threat Scanner")
+    st.caption("PulseGrid AI • Nebius x NVIDIA Hackathon 2026")
 
 
 # ==============================================================================
-# 3. Main Interface: Header & Investigation Trigger
+# 3. Main Search Interface
 # ==============================================================================
 st.markdown("""
 <div class="main-header">
@@ -206,22 +214,22 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Input Column Layout
+# Target Competitor Input
 col1, col2 = st.columns([3, 1])
 
 with col1:
     company_input = st.text_input(
         "Target Company / Competitor",
         value="",
-        placeholder="e.g. OpenAI, Anthropic, Databricks, Mistral AI, Cohere",
-        help="Enter the exact company or brand name you wish to investigate."
+        placeholder="e.g. OpenAI, Anthropic, Databricks, Mistral AI, Cohere, Scale AI",
+        help="Enter the company name to scan multi-stream market baselines."
     )
 
 with col2:
     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
     launch_btn = st.button("🚀 Launch Investigation", use_container_width=True)
 
-# Initialize Session State
+# Session State Persistence
 if "search_data" not in st.session_state:
     st.session_state.search_data = None
 if "dossier_content" not in st.session_state:
@@ -231,7 +239,7 @@ if "active_company" not in st.session_state:
 
 
 # ==============================================================================
-# 4. Live Progress Stepper & Investigation Execution
+# 4. Live Progress Stepper (st.status)
 # ==============================================================================
 if launch_btn and company_input.strip():
     target_company = company_input.strip()
@@ -246,10 +254,10 @@ if launch_btn and company_input.strip():
         # Step 2: Delta Signals
         st.write("🔍 **Step 2/3**: Calculating Delta Signals vs historical snapshot in Supabase cache...")
         deltas = search_data.get("delta_highlights", [])
-        st.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ Found {len(deltas)} delta signal highlights.")
+        st.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ Extracted {len(deltas)} delta signal highlights.")
 
-        # Step 3: Nemotron Adversarial Synthesis
-        st.write("🧠 **Step 3/3**: Executing Nemotron 3 Adversarial Synthesis & Verification...")
+        # Step 3: Nemotron 3 Adversarial Synthesis
+        st.write("🧠 **Step 3/3**: Executing Nemotron 3 Adversarial Synthesis & 'Prove Me Wrong' Verification...")
         dossier = synthesize_threat_dossier(target_company, search_data)
         st.session_state.dossier_content = dossier
 
@@ -261,7 +269,7 @@ if launch_btn and company_input.strip():
 
 
 # ==============================================================================
-# 5. Tabbed Results Display
+# 5. Tabbed Results View
 # ==============================================================================
 if st.session_state.dossier_content and st.session_state.search_data:
     company_name = st.session_state.active_company
@@ -305,7 +313,7 @@ if st.session_state.dossier_content and st.session_state.search_data:
             for signal in delta_signals:
                 st.markdown(f"<div class='delta-item'>⚡ {signal}</div>", unsafe_allow_html=True)
         else:
-            st.info("No delta differences detected from prior scans. Current data established as fresh baseline.")
+            st.info("No delta differences detected from prior scans. Baseline snapshot established.")
 
     # --------------------------------------------------------------------------
     # Tab 3: Evidence Ledger (Raw Streams)
