@@ -17,3 +17,4 @@ venv/
 .pulsegrid_cache.json
 .streamlit/secrets.toml
 .git/
+.pulsegrid_*.json

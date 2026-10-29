@@ -147,6 +147,9 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 [data-testid="stExpander"]{background:var(--panel);border:1px solid var(--line);border-radius:10px;}
 [data-testid="stExpander"] summary p{font:700 14px 'Rajdhani',sans-serif !important;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
 .sim-banner{background:#DC2626;color:#fff;font:700 clamp(18px,3vw,28px) 'Rajdhani',sans-serif;letter-spacing:.1em;text-align:center;padding:14px;border-radius:10px;}
+.tt{width:100%;border-collapse:collapse;font-size:14px;min-width:560px;}
+.tt th{font:600 12px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
+.tt td{padding:10px;border-bottom:1px solid var(--line);color:var(--text2);vertical-align:top;}
 .warn{background:#3A2C10;color:var(--turm2);border-radius:8px;padding:10px 14px;font-size:14px;margin-top:12px;}
 
 @media (max-width:640px){.panel{padding:20px;} .big{font-size:64px;}}
@@ -398,6 +401,10 @@ def calc_html(d: Dict[str, Any]) -> str:
                     f'<div class="bar"><i style="width:{w:.0f}%;background:{color}"></i></div>'
                     f'<div class="cap" style="margin-top:4px">{esc(b["note"])}</div></div>')
     caps = "".join(f'<div class="warn">{esc(x)}</div>' for x in c["caps"])
+    h = c.get("history")
+    if h:
+        base = f' · evidence score {c["base_score"]:g}%' if h.get("adjustment") else ""
+        caps += f'<div class="cap" style="margin-top:14px">स्मृति · {esc(h["message"])}{esc(base)}</div>'
     return f"""<div class="panel"><div class="stitle">How {c['score']:g}% was calculated</div>{''.join(rows)}{caps}
 <div class="why"><div class="k">Why not higher?</div><p>{esc(d['why_not_higher'])}</p></div></div>"""
 
@@ -405,3 +412,50 @@ def calc_html(d: Dict[str, Any]) -> str:
 def watch_html(d: Dict[str, Any]) -> str:
     items = "".join(f'<div class="watch"><b>{i}</b><span>{esc(r)}</span></div>' for i, r in enumerate(d["recommendations"], 1))
     return f'<div class="panel"><div class="stitle">What to watch next</div>{items}</div>'
+
+
+# ------------------------------------------------------------------ smriti / track record
+_STATUS_COLOR = {"pending": "#A7ACC8", "confirmed": "#7FD8A4", "refuted": "#FF9B8F", "expired": "#59618F"}
+
+
+def suggestion_html(sg: Dict[str, Any]) -> str:
+    color = "#7FD8A4" if sg["suggestion"] == "confirmed" else "#FF9B8F"
+    return f"""<div class="ev {'sup' if sg['suggestion'] == 'confirmed' else 'con'}"><div>
+<div class="label">Model suggestion · needs your review</div>
+<div class="cl" style="margin-top:6px">Earlier prediction: {esc(sg['hypothesis'])}</div>
+<div class="cl" style="margin-top:6px;color:{color}">Suggested: {esc(sg['suggestion'].upper())} — {esc(sg['reason'])}</div>
+<div class="mt">{link(sg['url'], sg['title'] or _domain(sg['url']))}</div></div></div>"""
+
+
+def smriti_html(rows: List[Dict[str, Any]], stats: List[Dict[str, Any]], backend: str) -> str:
+    if rows:
+        trs = []
+        for r in rows[:25]:
+            st_ = r.get("status", "pending")
+            out = link(r["resolution_url"], _domain(r["resolution_url"])) if r.get("resolution_url") else ""
+            trs.append(f'<tr><td class="mono">{esc(str(r.get("created_at", ""))[:10])}</td><td>{esc(r.get("company_name") or r.get("company_slug"))}</td>'
+                       f'<td>{esc(r.get("hypothesis"))}</td><td class="mono">{esc(r.get("confidence"))}%</td>'
+                       f'<td class="mono" style="color:{_STATUS_COLOR.get(st_, "#A7ACC8")}">{esc(st_)}</td><td>{out}</td></tr>')
+        table = ('<div class="svgbox"><table class="tt"><tr><th>Date</th><th>Company</th><th>Hypothesis</th><th>Conf.</th>'
+                 f'<th>Status</th><th>Outcome</th></tr>{"".join(trs)}</table></div>')
+    else:
+        table = '<div class="empty">No predictions yet. Every live investigation is saved here automatically.</div>'
+    if stats:
+        parts = []
+        for g in stats:
+            hit = "—" if g["hit_rate"] is None else f'{g["hit_rate"]:.0%}'
+            learn = "learning active" if g["resolved"] >= 5 else f'not enough history ({g["resolved"]}/5)'
+            parts.append(f'<tr><td class="mono">{esc(" + ".join(g["pattern"]) or "—")}</td><td>{esc(g["industry"])}</td>'
+                         f'<td class="mono">{g["resolved"]}</td><td class="mono">{g["pending"]}</td>'
+                         f'<td class="mono">{hit}</td><td class="cap">{esc(learn)}</td></tr>')
+        srows = "".join(parts)
+        stable = ('<div class="svgbox"><table class="tt"><tr><th>Pattern</th><th>Industry</th><th>Resolved</th><th>Pending</th>'
+                  f'<th>Hit rate</th><th>Learning</th></tr>{srows}</table></div>')
+    else:
+        stable = ""
+    note = "" if backend == "supabase" else '<div class="cap" style="margin-top:8px">Stored in a local file (Supabase not configured) — history resets if the server restarts.</div>'
+    return f"""<div class="panel"><div class="stitle">स्मृति · Smriti · Track record <span class="sub">— past hypotheses and what actually happened</span></div>{note}
+<div style="margin-top:14px">{table}</div>
+<div class="stitle" style="margin-top:28px;font-size:15px">Pattern stats</div>
+<div class="cap" style="margin-top:4px">Confidence for a pattern is adjusted (max ±10) only after 5 resolved predictions with that pattern and industry.</div>
+<div style="margin-top:10px">{stable or '<div class="empty">No patterns yet.</div>'}</div></div>"""

@@ -219,6 +219,10 @@ def _age_days(published: Optional[str]) -> Optional[float]:
     return (datetime.now(timezone.utc) - dt).total_seconds() / 86400
 
 
+def confidence_label(score: float) -> str:
+    return "High" if score >= 75 else "Moderate" if score >= 50 else "Low"
+
+
 def compute_confidence(supporting: List[Dict[str, Any]], contradicting: List[Dict[str, Any]],
                        adversarial_results_found: int) -> Dict[str, Any]:
     """Deterministic confidence score from evidence. Returns score, label and per-factor breakdown."""
@@ -260,7 +264,7 @@ def compute_confidence(supporting: List[Dict[str, Any]], contradicting: List[Dic
     if not supporting:
         score = 0.0
     score = round(min(score, 95.0), 1)  # never claim near-certainty
-    label = "High" if score >= 75 else "Moderate" if score >= 50 else "Low"
+    label = confidence_label(score)
     return {"score": score, "label": label, "breakdown": breakdown, "caps": caps}
 
 
@@ -271,7 +275,7 @@ def _simulated_analysis(company_name: str, raw_streams: List[Dict[str, Any]]) ->
     con = []
     conf = compute_confidence(sup, con, 0)
     return {
-        "company": company_name, "simulated": True,
+        "company": company_name, "simulated": True, "industry": "other",
         "hypothesis": f"[SIMULATED] Evidence is consistent with {company_name} shifting toward enterprise customers.",
         "executive_summary": "[SIMULATED] No model was called.",
         "supporting": sup, "contradicting": con, "adversarial_queries": [], "adversarial_results": [], "links": [],
@@ -317,7 +321,7 @@ EVIDENCE:
 Form exactly ONE strategic hypothesis about {company_name}'s direction that the evidence is consistent with,
 list the evidence that supports it, and write 2 short keyword-style web search queries (under 12 words, not questions) that would surface evidence AGAINST the hypothesis.
 JSON schema:
-{{"hypothesis": "one sentence", "supporting": [{{"evidence_id": "E1", "claim": "what this item shows"}}], "links": [{{"from": "E1", "to": "E2"}}], "counter_queries": ["...", "..."]}}
+{{"hypothesis": "one sentence", "industry": "one of: SaaS, devtools, AI model provider, hardware, fintech, consumer, other", "supporting": [{{"evidence_id": "E1", "claim": "what this item shows"}}], "links": [{{"from": "E1", "to": "E2"}}], "counter_queries": ["...", "..."]}}
 "links" = up to 5 pairs of the supporting items that reinforce each other (same story, from different angles). Use only IDs you listed under supporting. May be empty."""
     h = _chat_json(SYSTEM_PROMPT, p1, 4000, meta, {"hypothesis": str, "supporting": list}, "hypothesis step")
     hypothesis = str(h.get("hypothesis", "")).strip()
@@ -389,6 +393,7 @@ JSON schema:
     progress(4)
     return {
         "company": company_name, "simulated": False, "hypothesis": hypothesis,
+        "industry": str(h.get("industry", "other")).strip()[:40],
         "executive_summary": str(t.get("executive_summary", "")).strip(),
         "supporting": supporting, "contradicting": contradicting,
         "adversarial_queries": queries,
@@ -434,3 +439,8 @@ def dossier_to_markdown(d: Dict[str, Any], delta_highlights: List[str]) -> str:
 ## Changes since last scan
 {chr(10).join(f"- {h}" for h in delta_highlights)}
 """
+
+
+def chat_json_for(schema: Dict[str, type], where: str):
+    """Returns a (prompt, meta) -> dict caller using the shared system prompt; for other modules."""
+    return lambda prompt, meta: _chat_json(SYSTEM_PROMPT, prompt, 3000, meta, schema, where)

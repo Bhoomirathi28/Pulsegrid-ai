@@ -42,3 +42,4 @@ Thumbs.db
 
 # Streamlit secrets
 .streamlit/secrets.toml
+.pulsegrid_*.json

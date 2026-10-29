@@ -79,3 +79,57 @@ try:
 except ValueError:
     pass
 print("json extraction checks passed")
+
+# ---- track record (local temp store, never touches real history)
+import tempfile, store, track_record as tr
+from datetime import datetime, timedelta, timezone
+store.supabase_client = None
+tr.predictions.path = os.path.join(tempfile.mkdtemp(), "p.json")
+
+def mk(status="pending", age_days=0, pattern=("hiring", "product_change"), industry="SaaS"):
+    row = tr.predictions.insert({"company_slug": "acme", "company_name": "Acme", "industry": industry, "hypothesis": "h",
+                                 "pattern_signature": list(pattern), "confidence": 70, "factors": {}, "status": status})
+    if age_days:
+        tr.predictions.update(row["id"], {"created_at": (datetime.now(timezone.utc) - timedelta(days=age_days)).isoformat()})
+    return row
+
+assert tr.normalize_industry("devtools") == "devtools" and tr.normalize_industry("blockchain") == "other"
+# below 5 resolved: no adjustment, honest message
+for _ in range(4): mk("confirmed")
+h = tr.history_adjustment(["hiring", "product_change"], "SaaS", 60)
+assert h["adjustment"] == 0 and h["n"] == 4 and "4/5" in h["message"], h
+# 5 resolved, all confirmed, score 60 -> would be +40, capped at +10
+mk("confirmed")
+h = tr.history_adjustment(["hiring", "product_change"], "SaaS", 60)
+assert h["adjustment"] == 10.0 and h["n"] == 5, h
+# different industry/pattern is a separate group
+assert tr.history_adjustment(["hiring", "product_change"], "fintech", 60)["adjustment"] == 0
+assert tr.history_adjustment(["hiring"], "SaaS", 60)["n"] == 0
+# refuted-heavy history pulls down, capped at -10
+for _ in range(6): mk("refuted", pattern=("market_news",), industry="hardware")
+assert tr.history_adjustment(["market_news"], "hardware", 80)["adjustment"] == -10.0
+# pending/expired do not count as resolved
+mk("pending", pattern=("x",), industry="other"); assert tr.history_adjustment(["x"], "other", 50)["n"] == 0
+# expiry after 90 days
+old = mk("pending", age_days=95); fresh = mk("pending", age_days=10)
+rows = {r["id"]: r for r in tr.list_predictions()}
+assert rows[old["id"]]["status"] == "expired" and rows[fresh["id"]]["status"] == "pending"
+# resolve validates URL and sets status
+tr.resolve(fresh["id"], "confirmed", "https://example.com/x", "ok")
+assert tr.predictions.first(id=fresh["id"])["status"] == "confirmed"
+try:
+    tr.resolve(fresh["id"], "refuted", "javascript:alert(1)"); raise SystemExit("FAIL")
+except se.PulseGridError:
+    pass
+# suggestions: kept only if they cite a real retrieved result
+fake_chat = lambda prompt, meta: {"suggestions": [
+    {"prediction": "P1", "suggestion": "confirmed", "evidence_id": "E1", "reason": "r"},
+    {"prediction": "P1", "suggestion": "confirmed", "evidence_id": "E99", "reason": "invented"},
+    {"prediction": "P9", "suggestion": "refuted", "evidence_id": "E1", "reason": "bad pred"},
+    {"prediction": "P1", "suggestion": "none", "evidence_id": "E1", "reason": "n"}]}
+mk("pending", pattern=("zz",), industry="other"); tr.predictions.update(tr.predictions.select()[-1]["id"], {"company_slug": "zco"})
+sd = {"raw_streams": [{"category": "Talent", "results": [{"title": "t", "url": "https://a.com/1", "snippet": "s", "provenance": "Primary"}]}]}
+an = {"adversarial_results": [], "meta": {}}
+out = tr.suggest_resolutions("Zco", "zco", sd, an, fake_chat, ai._pool_text, ai._build_pool)
+assert len(out) == 1 and out[0]["url"] == "https://a.com/1", out
+print("track record checks passed")
