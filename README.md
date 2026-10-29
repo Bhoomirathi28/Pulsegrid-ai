@@ -47,6 +47,12 @@ Guardrails: output is parsed robustly (code fences and `<think>` blocks stripped
 
 Maximum reported score is 95%. The UI shows each factor's value and points.
 
+## Security notes
+- Web content is wrapped in `<web_content>` delimiters and the model is told it is untrusted data; model JSON is schema-checked and evidence URLs come only from Tavily results.
+- All web/model text is HTML-escaped before rendering; only http/https links are rendered as links.
+- Company input is validated (max 60 chars), snapshot keys are slugged, and each session is limited to 5 investigations.
+- Error messages are redacted of configured keys.
+
 ## Limitations
 - Hypotheses are inferences from public web snippets, not facts. Wording is "consistent with", never "proves".
 - Tavily snippets are short and often undated, so the recency factor is frequently low-information.
@@ -66,7 +72,7 @@ streamlit run app.py
 
 Keys are read from `st.secrets` first, then environment / `.env`. For Streamlit Community Cloud, paste the contents of `.streamlit/secrets.toml.example` (with real values) into *App settings → Secrets*.
 
-Optional Supabase table (snapshot diffing; otherwise a local JSON file is used):
+Optional Supabase table (snapshot diffing; otherwise a local JSON file is used). `SUPABASE_KEY` is the **service_role** key: server-side only, keep it in secrets and never commit it.
 ```sql
 create table if not exists scan_cache (
     id bigint generated always as identity primary key,

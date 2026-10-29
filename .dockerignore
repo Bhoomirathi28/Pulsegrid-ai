@@ -10,3 +10,10 @@ venv/
 .gitignore
 .system_generated/
 *.log
+
+.env
+.env.*
+!.env.example
+.pulsegrid_cache.json
+.streamlit/secrets.toml
+.git/
