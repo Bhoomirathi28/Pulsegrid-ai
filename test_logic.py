@@ -133,3 +133,64 @@ an = {"adversarial_results": [], "meta": {}}
 out = tr.suggest_resolutions("Zco", "zco", sd, an, fake_chat, ai._pool_text, ai._build_pool)
 assert len(out) == 1 and out[0]["url"] == "https://a.com/1", out
 print("track record checks passed")
+
+# ---- alerts (temp stores; fake channel, nothing is sent)
+import alerts
+for t in (alerts.watchlist, alerts.alert_log):
+    t.path = os.path.join(tempfile.mkdtemp(), "t.json")
+
+assert alerts.mrkdwn("a & <b> c") == "a &amp; &lt;b&gt; c"
+blocks = alerts.build_blocks({"company": "A&B <Co>", "reasons": ["x < y"], "confidence": {"old": 50, "new": 70, "old_band": "Moderate", "new_band": "Moderate"},
+                              "top_evidence": [{"claim": "c <1>", "title": "t", "url": "https://a.com/x", "source_type": "Primary"}]}, test=True)
+import json
+dump = json.dumps(blocks)
+assert "[TEST]" in dump and "PulseGrid alert: A&B <Co>" in dump   # header is plain_text, so not escaped
+assert "x &lt; y" in dump and "c &lt;1&gt;" in dump and "<https://a.com/x|" in dump
+
+def an(score, label, sup_types=("Primary",)):
+    return {"confidence": {"score": score, "label": label},
+            "supporting": [{"claim": f"c{i}", "title": "t", "url": f"https://a.com/{i}", "source_type": t, "stream": "Talent"} for i, t in enumerate(sup_types)]}
+first = {"first_scan": True, "new_signals": []}
+nodiff = {"first_scan": False, "new_signals": []}
+# first scan, no prior prediction: nothing to alert about
+assert alerts.evaluate("A", "a", an(70, "Moderate"), first, None) is None
+# small move inside the same band: no alert
+assert alerts.evaluate("A", "a", an(62, "Moderate"), nodiff, {"confidence": 58}) is None
+# >=10 point move
+al = alerts.evaluate("A", "a", an(75.5, "High"), nodiff, {"confidence": 60})
+assert al and al["confidence"]["old"] == 60 and "moved +15.5" in al["reasons"][0]
+# band cross with a small move
+al2 = alerts.evaluate("A", "a", an(75.0, "High"), nodiff, {"confidence": 74})
+assert al2 and "crossed from Moderate to High" in al2["reasons"][0]
+# new heavy source triggers, community source below threshold does not
+heavy = {"first_scan": False, "new_signals": [{"category": "X", "title": "New doc", "url": "https://d.com", "provenance": "Primary"}]}
+light = {"first_scan": False, "new_signals": [{"category": "X", "title": "Reddit", "url": "https://r.com", "provenance": "Community"}]}
+assert alerts.evaluate("A", "a", an(60, "Moderate"), heavy, {"confidence": 60}) is not None
+assert alerts.evaluate("A", "a", an(60, "Moderate"), light, {"confidence": 60}) is None
+# top evidence is ranked by source weight, max 3
+top = alerts.top_evidence(an(60, "Moderate", ("Community", "Primary", "Secondary", "Primary")))
+assert [e["source_type"] for e in top] == ["Primary", "Primary", "Secondary"]
+# with no channel configured, delivering raises a clear error (never silent success)
+alerts.slack_configured = lambda: False; alerts.email_configured = lambda: False
+try:
+    alerts.deliver(al); raise SystemExit("FAIL: expected error")
+except se.PulseGridError as e:
+    assert "No alert channel" in str(e) or "not configured" in str(e)
+# dedupe: same alert is delivered once
+sent_log = []
+alerts.deliver = lambda alert, test=False: (sent_log.append(1) or ["fake"])
+assert alerts.send_if_new(al) == ["fake"] and alerts.send_if_new(al) is None and len(sent_log) == 1
+# failed delivery is not logged as sent (so it can retry)
+def boom(alert, test=False): raise se.PulseGridError("down")
+alerts.deliver = boom
+try:
+    alerts.send_if_new(al2); raise SystemExit("FAIL")
+except se.PulseGridError:
+    pass
+alerts.deliver = lambda alert, test=False: ["fake"]
+assert alerts.send_if_new(al2) == ["fake"]
+# watchlist
+alerts.watch("a", "A"); alerts.watch("a", "A")
+assert len(alerts.list_watched()) == 1 and alerts.is_watched("a")
+alerts.unwatch("a"); assert not alerts.is_watched("a")
+print("alert checks passed")

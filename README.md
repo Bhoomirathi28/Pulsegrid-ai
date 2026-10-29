@@ -47,6 +47,24 @@ Guardrails: output is parsed robustly (code fences and `<think>` blocks stripped
 
 Maximum reported score is 95%. The UI shows each factor's value and points.
 
+## Track record (स्मृति Smriti)
+- Every live investigation is saved automatically as a **prediction** (hypothesis, industry label, pattern signature = the stream types that supported it, confidence, factor breakdown).
+- Outcomes are recorded by **you**: accept or dismiss a model suggestion, or mark one manually. Nemotron may *suggest* "confirmed" or "refuted" on a rescan, but only if it cites a real retrieved URL; nothing is resolved without your click.
+- Predictions still pending after **90 days** are marked `expired`.
+- **Learning rule:** only when a pattern + industry has **at least 5 resolved** predictions is confidence moved toward that group's hit rate, by **at most ±10 points**, and the UI says how (e.g. "Adjusted -6 based on 7 past predictions"). Below 5 it shows "Not enough history yet (n/5)". There is no seeded or fake history, so a fresh install starts empty.
+- Stored in Supabase (`predictions` table) or a local file if Supabase isn't configured.
+
+## Alerts and watchlist
+Alerts fire when a watched company is **rescanned** (manually in the app, or by the daily GitHub Action in `.github/workflows/watch.yml`). They are **not real-time**.
+
+Triggers (computed in Python): confidence moved by 10+ points or crossed a band (Low / Moderate / High); a new source with source weight ≥ 0.7 appeared (Primary 1.0 / Secondary 0.7 / Community 0.4); a prediction was resolved. The same alert is never sent twice (`alert_log`).
+
+Setup:
+1. Run `supabase_schema.sql` in the Supabase SQL editor (tables `predictions`, `watchlist`, `alert_log`, RLS on, no public policies; the app uses the service_role key server-side).
+2. Create a Slack **incoming webhook** and set `SLACK_WEBHOOK_URL` (and optionally `APP_URL`). Email is optional: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL_TO`.
+3. In the app, click **Watch this company**, and **Send test alert** to check the webhook (the message is labelled TEST).
+4. For the daily run, add the same values as GitHub repo secrets. `watch_runner.py` scans at most 5 companies per run and refuses to run without Supabase (there would be no stored previous scan to compare against).
+
 ## Security notes
 - Web content is wrapped in `<web_content>` delimiters and the model is told it is untrusted data; model JSON is schema-checked and evidence URLs come only from Tavily results.
 - All web/model text is HTML-escaped before rendering; only http/https links are rendered as links.

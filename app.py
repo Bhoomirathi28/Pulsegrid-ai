@@ -13,6 +13,7 @@ from search_engine import run_pulsegrid_search, PulseGridError, tavily_client
 from ai_engine import (synthesize_threat_dossier, dossier_to_markdown, nebius_client,
                        confidence_label, chat_json_for, _build_pool, _pool_text)
 import track_record as tr
+import alerts
 import store
 from search_engine import make_slug
 import ui_theme as ui
@@ -25,7 +26,7 @@ MAX_RUNS_PER_SESSION = 5
 COMPANY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .,&'\-]{0,59}$")
 
 for key, default in (("search_data", None), ("dossier_content", None), ("active_company", ""),
-                     ("run_error", None), ("run_count", 0), ("suggestions", []), ("saved_prediction", None), ("track_error", None)):
+                     ("run_error", None), ("run_count", 0), ("suggestions", []), ("saved_prediction", None), ("track_error", None), ("alert_msg", None)):
     if key not in st.session_state:
         st.session_state[key] = default
 
@@ -81,10 +82,23 @@ if launch_btn and company_input.strip():
             except Exception as e:
                 st.session_state.track_error = f"Could not check earlier predictions: {redact(e)}"
             try:
+                prev = tr.latest_confidence(slug)   # read BEFORE saving the new prediction
                 tr.apply_history(analysis, confidence_label)
                 st.session_state.saved_prediction = tr.save_prediction(target_company, slug, analysis)
             except Exception as e:
+                prev = None
                 st.session_state.track_error = f"Could not save prediction: {redact(e)}"
+            st.session_state.alert_msg = None
+            try:  # alerts must never break an investigation
+                if alerts.is_watched(slug):
+                    al = alerts.evaluate(target_company, slug, analysis, search_data["diff"], prev, prefs=alerts.watchlist.first(company_slug=slug))
+                    if al:
+                        sent = alerts.send_if_new(al)
+                        st.session_state.alert_msg = ("Alert sent via " + ", ".join(sent)) if sent else "Alert already sent earlier (not repeated)."
+                    else:
+                        st.session_state.alert_msg = "On watchlist: no alert triggered by this rescan."
+            except Exception as e:
+                st.session_state.alert_msg = f"Alert failed: {redact(e)}"
     except PulseGridError as e:
         st.session_state.run_error = redact(e)
     except Exception as e:  # unexpected - still show the real message
@@ -146,6 +160,31 @@ if d and sd:
     with a_right:
         if st.button("Save baseline", type="secondary", use_container_width=True):
             st.toast(f"Baseline is saved automatically after every scan (store: {sd['storage_backend']}).")
+        slug_now = make_slug(st.session_state.active_company)
+        watched = False
+        try:
+            watched = alerts.is_watched(slug_now)
+        except Exception:
+            pass
+        if watched:
+            if st.button("Stop watching", type="secondary", use_container_width=True):
+                alerts.unwatch(slug_now)
+                st.rerun()
+        elif st.button("Watch this company", type="secondary", use_container_width=True, disabled=d.get("simulated", False)):
+            try:
+                alerts.watch(slug_now, st.session_state.active_company)
+                st.toast("Added to watchlist. Alerts fire on rescans (manual, or the daily GitHub Action) — not in real time.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Could not save to watchlist: {redact(e)}")
+        if st.button("Send test alert", use_container_width=True):
+            try:
+                st.toast("TEST alert sent via " + ", ".join(alerts.test_alert(st.session_state.active_company)))
+            except PulseGridError as e:
+                st.error(str(e))
+        st.caption("Alerts fire on rescans (manual or the daily GitHub Action), not in real time.")
+        if st.session_state.alert_msg:
+            st.caption(st.session_state.alert_msg)
         st.download_button("Download report", data=dossier_to_markdown(d, sd["delta_highlights"]),
                            file_name=f"{re.sub(r'[^a-z0-9]+', '_', st.session_state.active_company.lower())}_pulsegrid.md",
                            mime="text/markdown", use_container_width=True)
@@ -160,6 +199,13 @@ if st.session_state.suggestions:
         a1, a2, _ = st.columns([1, 1, 3])
         if a1.button("Accept", key=f"acc{i}", use_container_width=True):
             tr.resolve(sg["prediction_id"], sg["suggestion"], sg["url"], "Accepted model suggestion: " + sg["reason"])
+            try:
+                slug_r = make_slug(st.session_state.active_company)
+                if alerts.is_watched(slug_r):
+                    alerts.send_if_new(alerts.resolution_alert(st.session_state.active_company, slug_r,
+                                       {"id": sg["prediction_id"], "hypothesis": sg["hypothesis"]}, sg["suggestion"], sg["url"]))
+            except Exception:
+                pass  # alert failure must not block resolving
             st.session_state.suggestions = [x for j, x in enumerate(st.session_state.suggestions) if j != i]
             st.rerun()
         if a2.button("Dismiss", key=f"dis{i}", use_container_width=True):

@@ -80,6 +80,12 @@ def _group_key(pattern: Any, industry: str) -> str:
     return json.dumps(sorted(pattern or [])) + "|" + industry
 
 
+def latest_confidence(company_slug: str) -> Optional[Dict[str, Any]]:
+    """Confidence of the most recent saved prediction for a company (read BEFORE saving the new one)."""
+    rows = list_predictions(company_slug)
+    return {"confidence": rows[0]["confidence"]} if rows and rows[0].get("confidence") is not None else None
+
+
 def pattern_stats(rows: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
     rows = list_predictions() if rows is None else rows
     groups: Dict[str, Dict[str, Any]] = {}
