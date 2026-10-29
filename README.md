@@ -1,173 +1,78 @@
-<div align="center">
-
 # ⚡ PulseGrid AI
-
-### The competitive-intelligence agent that tries to prove *itself* wrong
-
-![NVIDIA Nemotron](https://img.shields.io/badge/NVIDIA-Nemotron-76B900?logo=nvidia&logoColor=white)
-![Nebius](https://img.shields.io/badge/Nebius-Token%20Factory-1f6feb)
-![Tavily](https://img.shields.io/badge/Tavily-Live%20Web%20Search-7c3aed)
-![Streamlit](https://img.shields.io/badge/Streamlit-App-ff4b4b?logo=streamlit&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green)
-
+### A competitive-intelligence agent that tries to prove its own conclusions wrong
 *Built for the Nebius x NVIDIA Global AI Hackathon*
 
-**🔗 Live demo:** `TODO: add Streamlit URL` &nbsp;|&nbsp; **🎬 Video:** `TODO: add YouTube link`
-
-<!-- Replace with a real screenshot: save it as docs/screenshot.png -->
-![PulseGrid AI screenshot](docs/screenshot.png)
-
-</div>
+- **Demo URL:** `TODO: add Streamlit Community Cloud URL`
+- **Video:** `TODO: add YouTube link`
+- **Screenshot:** `TODO: add docs/screenshot.png` → `![PulseGrid AI](docs/screenshot.png)`
 
 ---
 
-## 🤔 What is it?
+## Overview
+Most competitive-intelligence tools run one prompt and print an unverified summary. PulseGrid does this instead:
 
-Type a company name. PulseGrid searches the live web, forms **one hypothesis** about where that company is heading, then **goes looking for evidence against its own idea**. You get a score that tells you how far to trust it, and **why it isn't higher**.
+1. **Investigate:** four parallel live-web streams via **Tavily** (talent, product/pricing, customer friction, market news).
+2. **Hypothesize:** **NVIDIA Nemotron** (on **Nebius Token Factory**) reads the numbered evidence and forms ONE hypothesis, shown as *HYPOTHESIS — NOT FACT*.
+3. **Attack:** Nemotron writes counter-queries; Tavily runs an adversarial "prove me wrong" search.
+4. **Classify:** Nemotron marks which adversarial results genuinely contradict the hypothesis.
+5. **Score:** the confidence score is computed in Python from the evidence (not by the model), with the factor breakdown shown in the UI.
+6. **Explain:** the model writes only the "Why not higher?" text, the summary and recommendations.
+7. **Baseline:** each scan is saved as a snapshot; rescan later to see which sources are new.
 
-> Most AI tools give you one confident answer. PulseGrid shows its work and its doubts.
+All data shown is live. If an API call fails, the app shows the error. It never substitutes fake data unless you explicitly set `DEMO_SIMULATION=true`, which puts a red **SIMULATED DATA — NOT LIVE** banner on every screen.
 
----
+## How Nemotron is used
+Model: `nvidia/nemotron-3-super-120b-a12b` on Nebius Token Factory (OpenAI-compatible API, base URL `https://api.tokenfactory.us-central1.nebius.com/v1/`). Verify the IDs your key can use with `python check_models.py`.
 
-## 🧭 How it works
+Three JSON-mode calls per investigation:
+1. **Hypothesis + counter-queries:** from numbered evidence (E1, E2, ...) it returns one hypothesis, the supporting evidence IDs, and search queries designed to disprove it.
+2. **Adversarial classification:** given the Tavily "prove me wrong" results (A1, A2, ...), it returns which ones contradict the hypothesis, plus an alternative explanation.
+3. **Narrative:** given the already-computed score and factor breakdown, it writes the executive summary, "Why not higher?" and recommendations.
 
-```mermaid
-flowchart LR
-    A[🏢 Company name] --> B[🌐 Tavily<br/>4 parallel searches]
-    B --> C[🧠 Nemotron<br/>forms ONE hypothesis]
-    C --> D[🔎 Tavily<br/>'prove me wrong' search]
-    D --> E[🧠 Nemotron<br/>which results contradict it?]
-    E --> F[🧮 Python<br/>calculates confidence]
-    F --> G[🧠 Nemotron<br/>writes 'Why not higher?']
-    G --> H[📄 Dossier + sources]
-    B -.-> S[(💾 Snapshot<br/>saved for next scan)]
-```
+Guardrails: output is parsed robustly (code fences and `<think>` blocks stripped, one retry on invalid JSON). The model cites evidence by ID only; Python maps IDs back to the retrieved Tavily URLs, so a URL the model invents can never appear.
 
-| Step | What happens | Who does it |
-|---|---|---|
-| 1️⃣ **Investigate** | 4 searches run at the same time: 👥 hiring · 💰 product & pricing · 😤 customer complaints · 📰 market news | Tavily |
-| 2️⃣ **Hypothesize** | Reads the numbered evidence, forms one idea marked **HYPOTHESIS — NOT FACT** | Nemotron |
-| 3️⃣ **Attack** | Writes search queries designed to *disprove* the idea, then searches for them | Nemotron + Tavily |
-| 4️⃣ **Judge** | Decides which of the new results truly contradict the hypothesis | Nemotron |
-| 5️⃣ **Score** | Calculates confidence from the evidence. **The AI does not pick the number.** | Python 🧮 |
-| 6️⃣ **Explain** | Writes the summary, "Why not higher?" and recommendations | Nemotron |
-| 7️⃣ **Remember** | Saves a snapshot. Scan again later to see which sources are new | Supabase / local file |
+## How Tavily is used
+- **Discovery:** 4 parallel `advanced` searches (talent, product/pricing, customer friction, market/news) → up to 20 sources, each classified Primary / Secondary / Community by domain.
+- **Investigation:** the evidence ledger tab lists every retrieved source with its link.
+- **Adversarial search:** Nemotron-written counter-queries are run through Tavily to look for contradicting evidence. If this search returns nothing, the confidence score is capped at 60 because the hypothesis was not meaningfully tested.
 
----
-
-## 🖼️ What you see
-
-```text
-┌────────────────────────────────────────────────────────────┐
-│ 🟢 LIVE MODE · Model: nvidia/nemotron-3-super-120b-a12b    │
-│    Tavily ✅ 4/4 streams + ✅ 2 adversarial · Nebius ✅ 3   │
-├────────────────────────────────────────────────────────────┤
-│ 🧠 HYPOTHESIS — NOT FACT                                   │
-│ "The evidence is consistent with a push into enterprise…"  │
-├──────────────────────────────┬─────────────────────────────┤
-│ 🟢 SUPPORTING (5)            │ 🔴 CONTRADICTING (1)        │
-│ • Primary · 20 infra roles   │ • Community · pricing is    │
-│   🔗 careers.example.com     │   unchanged for SMBs        │
-│ • Primary · new SLA tier     │   🔗 reddit.com/…           │
-│   🔗 docs.example.com        │                             │
-├──────────────────────────────┴─────────────────────────────┤
-│ 📊 CONFIDENCE  ███████░░░  68% (Moderate)                  │
-│    + factor table showing exactly where the points came from│
-│ ❓ Why not higher?  (written by Nemotron)                  │
-└────────────────────────────────────────────────────────────┘
-```
-
-Three tabs: **⚡ Threat Dossier** · **🔍 Changes Since Last Scan** · **🌐 Evidence Ledger** (every raw result with a clickable link).
-
----
-
-## 🧮 How the confidence score is calculated
-
-The score is plain Python arithmetic over the evidence. You can see every factor in the app.
-
-| Factor | Weight | What it measures |
-|---|---:|---|
-| ⚖️ Support vs contradiction | 35% | Supporting vs contradicting items, weighted by source quality |
-| 📚 Amount of evidence | 20% | More supporting items = higher (full marks at 6) |
-| 🏛️ Source quality | 20% | Primary 1.0 · Secondary 0.7 · Community 0.4 |
-| 🕒 Recency | 15% | Newer = better. Undated sources count as 0.4 |
-| 🌍 Coverage | 10% | How many of the 4 streams back the idea |
-
-- 🔒 The maximum shown is **95%**. Nothing is ever "certain".
-- ⚠️ If the "prove me wrong" search finds nothing at all, the score is **capped at 60**, because the idea wasn't really tested.
-
----
-
-## 🤖 How Nemotron is used
-
-**Model:** `nvidia/nemotron-3-super-120b-a12b` on **Nebius Token Factory** (OpenAI-compatible API).
-Run `python check_models.py` to list the model IDs your key can use.
-
-It makes **3 calls** per investigation:
-
-1. 💡 **Hypothesis + counter-queries**: from numbered evidence (E1, E2, …) → one hypothesis, which evidence supports it, and queries to disprove it.
-2. ⚔️ **Adversarial judge**: reads the "prove me wrong" results (A1, A2, …) → which ones really contradict it, plus an alternative explanation.
-3. ✍️ **Narrative**: given the *already calculated* score → summary, "Why not higher?", recommendations.
-
-**Guardrails**
-- The model cites evidence **by ID only**. Python looks up the link from the real Tavily result, so an invented URL can never appear.
-- JSON output is cleaned (code fences removed), checked against an expected shape, and retried once if invalid.
-
-## 🔍 How Tavily is used
-
-| Use | What it does |
+## Confidence score (computed in Python)
+| Factor | Weight |
 |---|---|
-| 🧭 **Discovery** | 4 parallel `advanced` searches (hiring, product/pricing, complaints, news) → up to 20 sources, each tagged Primary / Secondary / Community |
-| 🕵️ **Investigation** | Every retrieved source is listed in the Evidence Ledger with its link |
-| ⚔️ **Adversarial search** | Nemotron-written counter-queries search for evidence *against* the hypothesis |
+| Source-weighted supporting vs contradicting evidence | 35% |
+| Amount of supporting evidence (full marks at 6 items) | 20% |
+| Source quality (Primary 1.0 / Secondary 0.7 / Community 0.4) | 20% |
+| Recency (undated sources count as 0.4) | 15% |
+| Coverage across the 4 streams | 10% |
 
----
+Maximum reported score is 95%. The UI shows each factor's value and points.
 
-## 💾 Change tracking
+## Security notes
+- Web content is wrapped in `<web_content>` delimiters and the model is told it is untrusted data; model JSON is schema-checked and evidence URLs come only from Tavily results.
+- All web/model text is HTML-escaped before rendering; only http/https links are rendered as links.
+- Company input is validated (max 60 chars), snapshot keys are slugged, and each session is limited to 5 investigations.
+- Error messages are redacted of configured keys.
 
-- **First scan** → "First scan — baseline saved". No changes are claimed.
-- **Next scan** → lists sources that are new since the last saved snapshot (matched by URL).
-- Stored in **Supabase** if configured, otherwise a local JSON file.
-- There is **no background monitoring**. Rescan manually to see what changed.
+## Limitations
+- Hypotheses are inferences from public web snippets, not facts. Wording is "consistent with", never "proves".
+- Tavily snippets are short and often undated, so the recency factor is frequently low-information.
+- Source type is classified by domain heuristics and can be wrong.
+- Change detection compares source URLs only; it does not diff page content. The first scan only saves a baseline. There is no background monitoring: rescan manually to see what changed.
+- Quality depends on Tavily results and the model's reading of them. Entity-name collisions (e.g. a common-word company name) can pollute results.
+- Without Supabase, snapshots are stored in a local JSON file, which is ephemeral on Streamlit Community Cloud.
 
-## 🚨 Honest by design
-
-| Situation | What PulseGrid does |
-|---|---|
-| An API call fails | Shows the real error. **Never invents data.** |
-| `DEMO_SIMULATION=true` | Shows fake data under a huge red **SIMULATED DATA — NOT LIVE** banner |
-| Model states a conclusion | Labelled **HYPOTHESIS — NOT FACT**, phrased "consistent with" |
-
----
-
-## 🚀 Run it yourself
-
+## Quickstart
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # then add your keys
-python check_models.py        # confirm the Nemotron model ID
-python test_logic.py          # offline sanity checks
-streamlit run app.py          # open http://localhost:8501
+cp .env.example .env        # fill in keys
+python check_models.py      # confirm the Nemotron model ID
+python test_logic.py        # offline sanity checks
+streamlit run app.py
 ```
 
-<details>
-<summary><b>🔑 Keys & configuration</b></summary>
+Keys are read from `st.secrets` first, then environment / `.env`. For Streamlit Community Cloud, paste the contents of `.streamlit/secrets.toml.example` (with real values) into *App settings → Secrets*.
 
-| Variable | Needed | Notes |
-|---|---|---|
-| `TAVILY_API_KEY` | ✅ | Live web search |
-| `NEBIUS_API_KEY` | ✅ | Nebius Token Factory |
-| `NEBIUS_MODEL` | optional | Default `nvidia/nemotron-3-super-120b-a12b` |
-| `SUPABASE_URL`, `SUPABASE_KEY` | optional | `SUPABASE_KEY` is the **service_role** key. Server-side only, never commit it |
-| `DEMO_SIMULATION` | optional | `true` = fake data with red banner |
-
-Keys are read from `st.secrets` first, then environment / `.env`.
-For Streamlit Community Cloud, paste the contents of `.streamlit/secrets.toml.example` (with real values) into **App settings → Secrets**.
-</details>
-
-<details>
-<summary><b>🗄️ Optional Supabase table</b></summary>
-
+Optional Supabase table (snapshot diffing; otherwise a local JSON file is used). `SUPABASE_KEY` is the **service_role** key: server-side only, keep it in secrets and never commit it.
 ```sql
 create table if not exists scan_cache (
     id bigint generated always as identity primary key,
@@ -177,34 +82,17 @@ create table if not exists scan_cache (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 ```
-</details>
 
----
-
-## 📂 Project layout
-
+## Project layout
 ```text
-app.py            🖥️  Streamlit UI, live-mode panel, simulation banner
-ai_engine.py      🧠  Nemotron calls, evidence-ID matching, Python confidence score
-search_engine.py  🌐  Tavily streams, retries, snapshots (Supabase + local), diffing
-config.py         ⚙️  Secrets / env, DEMO_SIMULATION flag
-check_models.py   📋  Lists available Nemotron model IDs
-test_logic.py     ✅  Offline tests
+├── app.py              # Streamlit UI, live-mode indicator, simulation banner
+├── ai_engine.py        # Nemotron calls, evidence-ID resolution, Python confidence score
+├── search_engine.py    # Tavily streams, retries/timeouts, snapshots (Supabase + local), diffing
+├── config.py           # st.secrets / env config, DEMO_SIMULATION flag
+├── check_models.py     # lists available Nemotron model IDs on Nebius
+├── test_logic.py       # offline tests
+└── .streamlit/secrets.toml.example
 ```
 
-## 🛡️ Security notes
-- Web text is wrapped in `<web_content>` tags and the model is told it is untrusted data, not instructions.
-- Everything shown is HTML-escaped; only `http`/`https` links are clickable.
-- Company input is validated (max 60 chars), and each session is limited to 5 investigations.
-- Error messages are stripped of API keys.
-
-## ⚠️ Limitations
-- Hypotheses are inferences from public web snippets, **not facts**.
-- Snippets are short and often undated, so the recency factor is rough.
-- Source type is guessed from the domain and can be wrong.
-- Change detection compares **source URLs only**, not page content.
-- Companies with common-word names can pull in unrelated results.
-- Without Supabase, snapshots live in a local file, which resets on Streamlit Cloud.
-
-## 📜 License
-[MIT](LICENSE) © 2026 Bhoomi Rathi
+## License
+MIT
