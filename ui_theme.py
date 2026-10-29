@@ -59,8 +59,8 @@ header, footer, #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration
   background-image:radial-gradient(rgba(243,235,221,0.09) 1.2px, transparent 1.4px);
   background-size:28px 28px; color:var(--cream); font-family:'Mukta',sans-serif;
 }
-.block-container{max-width:1240px !important; padding:24px 5% 64px !important;}
-[data-testid="stVerticalBlock"]{gap:32px;}
+.block-container{max-width:1080px !important; padding:24px 5% 64px !important;}
+[data-testid="stVerticalBlock"]{gap:24px;}
 h1,h2,h3,.raj{font-family:'Rajdhani',sans-serif;}
 .mono{font-family:'JetBrains Mono',monospace;}
 
@@ -150,6 +150,25 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .tt{width:100%;border-collapse:collapse;font-size:14px;min-width:560px;}
 .tt th{font:600 12px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
 .tt td{padding:10px;border-bottom:1px solid var(--line);color:var(--text2);vertical-align:top;}
+.sk{font:500 12px 'Mukta',sans-serif;letter-spacing:0;color:var(--muted);margin-left:8px;text-transform:none;}
+[role="tablist"]{gap:28px;border-bottom:1px solid var(--line);background:transparent !important;}
+[data-testid="stTab"]{background:transparent !important;padding:10px 0 !important;height:auto !important;}
+[data-testid="stTab"], [data-testid="stTab"] *{font-family:'Rajdhani',sans-serif !important;font-weight:600 !important;font-size:14px !important;letter-spacing:.12em;text-transform:uppercase;color:var(--muted) !important;}
+[data-testid="stTab"][aria-selected="true"], [data-testid="stTab"][aria-selected="true"] *{color:var(--cream) !important;}
+.react-aria-SelectionIndicator{background:var(--turm) !important;height:2px !important;}
+[role="tabpanel"]{padding-top:24px !important;}
+.sum{display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start;}
+.sum .l{flex:3 1 420px;min-width:0;} .sum .r{flex:2 1 300px;min-width:0;}
+.scale{display:flex;height:8px;border-radius:4px;overflow:hidden;position:relative;margin-top:14px;}
+.scale i{display:block;height:100%;}
+.scale-wrap{position:relative;}
+.scale-wrap .mk{position:absolute;top:8px;width:3px;height:16px;background:var(--turm);border-radius:2px;}
+.scale-l{display:flex;font:500 11px 'JetBrains Mono',monospace;color:var(--muted);margin-top:6px;}
+.facts{font:400 13px 'JetBrains Mono',monospace;color:var(--text2);margin-top:24px;padding-top:16px;border-top:1px solid var(--line);display:flex;gap:10px 22px;flex-wrap:wrap;}
+.facts b{color:var(--turm2);font-weight:500;}
+.outc{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;}
+.qrow{display:flex;gap:14px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line);align-items:baseline;}
+.qrow .qt{flex:0 0 118px;font:500 12px 'JetBrains Mono',monospace;color:var(--muted);} .qrow .qq{flex:1 1 260px;font:400 13px 'JetBrains Mono',monospace;color:var(--cream);}
 .warn{background:#3A2C10;color:var(--turm2);border-radius:8px;padding:10px 14px;font-size:14px;margin-top:12px;}
 
 @media (max-width:640px){.panel{padding:20px;} .big{font-size:64px;}}
@@ -459,3 +478,93 @@ def smriti_html(rows: List[Dict[str, Any]], stats: List[Dict[str, Any]], backend
 <div class="stitle" style="margin-top:28px;font-size:15px">Pattern stats</div>
 <div class="cap" style="margin-top:4px">Confidence for a pattern is adjusted (max ±10) only after 5 resolved predictions with that pattern and industry.</div>
 <div style="margin-top:10px">{stable or '<div class="empty">No patterns yet.</div>'}</div></div>"""
+
+
+# ------------------------------------------------------------------ results layout (summary / tabs / actions)
+BANDS = [("Low", 0, 50, "#5A2A33"), ("Moderate", 50, 75, "#6B5320"), ("High", 75, 100, "#1E5A3C")]
+
+
+def spacer(px: int = 32) -> str:
+    return f'<div style="height:{px}px"></div>'
+
+
+def label(text: str, sanskrit: str = "") -> str:
+    sk = f'<span class="sk">{esc(sanskrit)}</span>' if sanskrit else ""
+    return f'<div class="label">{esc(text)}{sk}</div>'
+
+
+def _next_band_line(score: float, name: str) -> str:
+    if name == "Low":
+        return f"Low — {50 - score:.1f} points from Moderate"
+    if name == "Moderate":
+        return f"Moderate — {75 - score:.1f} points from High"
+    return "High — top band"
+
+
+def key_facts(d: Dict[str, Any]) -> List[str]:
+    sup, con = d["supporting"], d["contradicting"]
+    first_party = sum(1 for e in sup if e["source_type"] == "Primary")
+    streams = len({e["stream"] for e in sup})
+    return [f"<b>{len(sup)}</b> supporting sources", f"<b>{first_party}</b> first-party",
+            f"<b>{len(con)}</b> contradictions", f"<b>{streams}/4</b> streams",
+            f"<b>{len(d.get('adversarial_queries', []))}</b> counter-searches"]
+
+
+def summary_html(d: Dict[str, Any]) -> str:
+    c = d["confidence"]
+    score = c["score"]
+    segs = "".join(f'<i style="width:{hi - lo}%;background:{col}"></i>' for _, lo, hi, col in BANDS)
+    marks = "".join(f'<span style="width:{hi - lo}%">{n}</span>' for n, lo, hi, _ in BANDS)
+    facts = "".join(f"<span>{f}</span>" for f in key_facts(d))
+    return f"""<div class="sum"><div class="l">{label("Hypothesis — not fact", "अनुमान")}
+<div class="h1" style="margin-top:10px">{esc(d['hypothesis'])}</div></div>
+<div class="r">{label("Confidence", "निश्चय")}<div class="big">{score:g}<small>%</small></div>
+<div class="scale-wrap"><div class="scale">{segs}</div><span class="mk" style="left:calc({min(score, 100):g}% - 1px)"></span></div>
+<div class="scale-l">{marks}</div>
+<div class="p2" style="margin-top:10px;font-size:15px">{esc(_next_band_line(score, c['label']))}</div>
+<div class="cap">computed from evidence, not the model’s guess</div></div></div>
+<div class="facts">{facts}</div>"""
+
+
+def evidence_tab_html(d: Dict[str, Any]) -> str:
+    sup = "".join(evidence_card(e, "sup") for e in d["supporting"]) or '<div class="empty">No supporting evidence.</div>'
+    con = "".join(evidence_card(e, "con") for e in d["contradicting"]) or         '<div class="empty">The counter-search found nothing that contradicts the hypothesis.</div>'
+    ctx = f'<div class="p2" style="margin-bottom:24px">{esc(d["executive_summary"])}</div>' if d.get("executive_summary") else ""
+    return f"""{ctx}<div class="row2"><div class="col"><div class="stitle" style="color:#7FD8A4">Supporting · {len(d['supporting'])}<span class="sub">प्रत्यक्ष seen directly · शब्द reported by others</span></div>{sup}</div>
+<div class="col"><div class="stitle" style="color:#FF9B8F">Contradicting · {len(d['contradicting'])}<span class="sub">पूर्वपक्ष</span></div>{con}</div></div>"""
+
+
+def selfchallenge_html(d: Dict[str, Any]) -> str:
+    qs = d.get("adversarial_queries", [])
+    adv = d.get("adversarial_results", [])
+    con_urls = {e["url"] for e in d["contradicting"]}
+    flagged = sum(1 for a in adv if a["url"] in con_urls)
+    head = (f'<div class="p2"><b style="color:var(--cream)">{len(qs)}</b> counter-searches · '
+            f'<b style="color:var(--cream)">{len(adv)}</b> results retrieved · '
+            f'<b style="color:var(--cream)">{flagged}</b> judged to contradict the hypothesis</div>')
+    qrows = "".join(f'<div class="qrow"><span class="qt">QUERY {i}</span><span class="qq">{esc(q)}</span></div>' for i, q in enumerate(qs, 1))         or '<div class="empty">No counter-search queries were recorded.</div>'
+    rrows = "".join(
+        f'<div class="qrow"><span class="qt"><i class="outc" style="background:{"#EE6A5C" if a["url"] in con_urls else "#59618F"}"></i>'
+        f'{"contradicts" if a["url"] in con_urls else "neutral"}</span><span class="qq">{link(a["url"], a["title"] or _domain(a["url"]))}</span></div>'
+        for a in adv) or '<div class="empty">The counter-search returned no results, so the hypothesis was not meaningfully tested.</div>'
+    alt = f'<div class="why"><div class="k">Alternative explanation</div><p>{esc(d["alternative_explanation"])}</p></div>' if d.get("alternative_explanation") else ""
+    return f"""<div class="stitle">Purva Paksha<span class="sub">पूर्वपक्ष · how it tried to prove itself wrong</span></div>
+<div style="margin-top:12px">{head}</div><div class="cap" style="margin-top:6px">Per-query outcomes are not tracked; results below are all counter-search results.</div>
+<div class="stitle" style="font-size:15px;margin-top:24px">Queries run</div>{qrows}
+<div class="stitle" style="font-size:15px;margin-top:24px">Counter-search results</div>{rrows}{alt}"""
+
+
+def watch_next_html(d: Dict[str, Any]) -> str:
+    items = "".join(f'<div class="watch"><b>{i}</b><span>{esc(r)}</span></div>' for i, r in enumerate(d["recommendations"], 1))
+    return f'<div class="stitle">Watch next<span class="sub">आगे</span></div>{items}'
+
+
+def under_hood_html(d: Dict[str, Any], sd: Dict[str, Any]) -> str:
+    m = d["meta"]
+    rows = [("Model", m["model"]), ("Nebius calls succeeded", m.get("nebius_calls_ok", 0)),
+            ("Tavily stream searches", sd.get("tavily_calls_ok", 0)), ("Tavily counter-searches", m.get("tavily_adversarial_ok", 0)),
+            ("Sources retrieved", sum(len(s.get("results", [])) for s in sd["raw_streams"])),
+            ("Snapshot store", sd.get("storage_backend", "—")), ("Industry label", d.get("industry", "—")),
+            ("Pattern", " + ".join(d.get("pattern_signature", [])) or "—")]
+    trs = "".join(f'<tr><td>{esc(k)}</td><td class="mono">{esc(v)}</td></tr>' for k, v in rows)
+    return f'<table class="tt" style="min-width:0">{trs}</table>'
