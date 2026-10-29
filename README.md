@@ -1,59 +1,72 @@
 # ⚡ PulseGrid AI
-### Autonomous Competitive Intelligence Agent That Has to Prove Its Own Conclusions
+### A competitive-intelligence agent that tries to prove its own conclusions wrong
 *Built for the Nebius x NVIDIA Global AI Hackathon*
 
----
-
-## 🎯 Overview
-Most competitive intelligence tools take a single query, run an LLM prompt, and output an unverified summary. 
-
-**PulseGrid AI reverses the paradigm:**
-PulseGrid does not trust its first answer. It acts like an elite investigative intelligence analyst:
-1. **Investigate:** Parallel live-web scanning across 4 intelligence streams via **Tavily Search API**.
-2. **Detect & Baseline:** Caches snapshots in **Supabase** (`scan_cache`) and computes real historical diffs.
-3. **Correlate:** Synthesizes cross-signal patterns using **NVIDIA Nemotron 3 Super (120B)** via **Nebius Token Factory**.
-4. **Hypothesize:** Generates strategic hypotheses (explicitly marked *HYPOTHESIS — NOT FACT*).
-5. **Attack ("Prove Me Wrong"):** Actively formulates adversarial search queries to attempt to falsify its own hypothesis.
-6. **Audit & Trust Layer™:** Calculates a multi-factor, evidence-backed confidence score with a transparent *"Why Not Higher?"* assessment.
-7. **Decide & Watch:** Delivers high-impact executive counter-moves and initiates persistent 72h watch mode monitoring.
+- **Demo URL:** `TODO: add Streamlit Community Cloud URL`
+- **Video:** `TODO: add YouTube link`
+- **Screenshot:** `TODO: add docs/screenshot.png` → `![PulseGrid AI](docs/screenshot.png)`
 
 ---
 
-## 🛠️ Tech Stack
-- **Web Search & Adversarial Retrieval:** [Tavily Search API](https://tavily.com) (4 parallel streams + falsification search)
-- **Reasoning Engine:** [Nebius Token Factory](https://tokenfactory.nebius.com) (`nvidia/nemotron-3-super-120b` & `nvidia/nemotron-3-ultra-550b`)
-- **Database & Snapshot Caching:** [Supabase](https://supabase.com) (`supabase-py` with local fallback)
-- **Web UI:** [Streamlit](https://streamlit.io) (Dark cyber-intelligence obsidian & NVIDIA green design)
-- **Configuration:** `python-dotenv`
+## Overview
+Most competitive-intelligence tools run one prompt and print an unverified summary. PulseGrid does this instead:
 
----
+1. **Investigate:** four parallel live-web streams via **Tavily** (talent, product/pricing, customer friction, market news).
+2. **Hypothesize:** **NVIDIA Nemotron** (on **Nebius Token Factory**) reads the numbered evidence and forms ONE hypothesis, shown as *HYPOTHESIS — NOT FACT*.
+3. **Attack:** Nemotron writes counter-queries; Tavily runs an adversarial "prove me wrong" search.
+4. **Classify:** Nemotron marks which adversarial results genuinely contradict the hypothesis.
+5. **Score:** the confidence score is computed in Python from the evidence (not by the model), with the factor breakdown shown in the UI.
+6. **Explain:** the model writes only the "Why not higher?" text, the summary and recommendations.
+7. **Baseline:** each scan is saved as a snapshot; rescan later to see which sources are new.
 
-## 🚀 Quickstart
+All data shown is live. If an API call fails, the app shows the error. It never substitutes fake data unless you explicitly set `DEMO_SIMULATION=true`, which puts a red **SIMULATED DATA — NOT LIVE** banner on every screen.
 
-### 1. Installation
-Clone or navigate to the directory:
+## How Nemotron is used
+Model: `nvidia/nemotron-3-super-120b-a12b` on Nebius Token Factory (OpenAI-compatible API, base URL `https://api.tokenfactory.us-central1.nebius.com/v1/`). Verify the IDs your key can use with `python check_models.py`.
+
+Three JSON-mode calls per investigation:
+1. **Hypothesis + counter-queries:** from numbered evidence (E1, E2, ...) it returns one hypothesis, the supporting evidence IDs, and search queries designed to disprove it.
+2. **Adversarial classification:** given the Tavily "prove me wrong" results (A1, A2, ...), it returns which ones contradict the hypothesis, plus an alternative explanation.
+3. **Narrative:** given the already-computed score and factor breakdown, it writes the executive summary, "Why not higher?" and recommendations.
+
+Guardrails: output is parsed robustly (code fences and `<think>` blocks stripped, one retry on invalid JSON). The model cites evidence by ID only; Python maps IDs back to the retrieved Tavily URLs, so a URL the model invents can never appear.
+
+## How Tavily is used
+- **Discovery:** 4 parallel `advanced` searches (talent, product/pricing, customer friction, market/news) → up to 20 sources, each classified Primary / Secondary / Community by domain.
+- **Investigation:** the evidence ledger tab lists every retrieved source with its link.
+- **Adversarial search:** Nemotron-written counter-queries are run through Tavily to look for contradicting evidence. If this search returns nothing, the confidence score is capped at 60 because the hypothesis was not meaningfully tested.
+
+## Confidence score (computed in Python)
+| Factor | Weight |
+|---|---|
+| Source-weighted supporting vs contradicting evidence | 35% |
+| Amount of supporting evidence (full marks at 6 items) | 20% |
+| Source quality (Primary 1.0 / Secondary 0.7 / Community 0.4) | 20% |
+| Recency (undated sources count as 0.4) | 15% |
+| Coverage across the 4 streams | 10% |
+
+Maximum reported score is 95%. The UI shows each factor's value and points.
+
+## Limitations
+- Hypotheses are inferences from public web snippets, not facts. Wording is "consistent with", never "proves".
+- Tavily snippets are short and often undated, so the recency factor is frequently low-information.
+- Source type is classified by domain heuristics and can be wrong.
+- Change detection compares source URLs only; it does not diff page content. The first scan only saves a baseline. There is no background monitoring: rescan manually to see what changed.
+- Quality depends on Tavily results and the model's reading of them. Entity-name collisions (e.g. a common-word company name) can pollute results.
+- Without Supabase, snapshots are stored in a local JSON file, which is ephemeral on Streamlit Community Cloud.
+
+## Quickstart
 ```bash
-cd pulsegrid-ai
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
+cp .env.example .env        # fill in keys
+python check_models.py      # confirm the Nemotron model ID
+python test_logic.py        # offline sanity checks
+streamlit run app.py
 ```
 
-### 2. Environment Configuration
-Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-Fill in your credentials:
-```env
-TAVILY_API_KEY=tvly-xxxxxxxxxxxx
-NEBIUS_API_KEY=nebius-xxxxxxxxxxxx
-NEBIUS_MODEL=nvidia/nemotron-3-super-120b
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_supabase_anon_key
-```
-*(Note: If API keys are not supplied, PulseGrid features an intelligent simulation fallback so you can demo the entire end-to-end interface and adversarial pipeline out-of-the-box!)*
+Keys are read from `st.secrets` first, then environment / `.env`. For Streamlit Community Cloud, paste the contents of `.streamlit/secrets.toml.example` (with real values) into *App settings → Secrets*.
 
-### 3. Supabase Schema (Optional but Recommended)
-In your Supabase SQL Editor:
+Optional Supabase table (snapshot diffing; otherwise a local JSON file is used):
 ```sql
 create table if not exists scan_cache (
     id bigint generated always as identity primary key,
@@ -64,21 +77,16 @@ create table if not exists scan_cache (
 );
 ```
 
-### 4. Run the Streamlit Application
-```bash
-streamlit run app.py
-```
-Open your browser at `http://localhost:8501`.
-
----
-
-## 📂 Project Architecture
+## Project layout
 ```text
-pulsegrid-ai/
-├── search_engine.py       # 4 parallel Tavily streams, Supabase cache, source provenance, diffing
-├── ai_engine.py           # Nemotron 3 synthesis, adversarial audit, Trust Layer™ confidence scoring
-├── app.py                 # Streamlit high-tech UI, adversarial breakdown tabs, live status
-├── requirements.txt       # Project dependencies
-├── .env.example           # API credentials template
-└── README.md              # Project documentation
+├── app.py              # Streamlit UI, live-mode indicator, simulation banner
+├── ai_engine.py        # Nemotron calls, evidence-ID resolution, Python confidence score
+├── search_engine.py    # Tavily streams, retries/timeouts, snapshots (Supabase + local), diffing
+├── config.py           # st.secrets / env config, DEMO_SIMULATION flag
+├── check_models.py     # lists available Nemotron model IDs on Nebius
+├── test_logic.py       # offline tests
+└── .streamlit/secrets.toml.example
 ```
+
+## License
+MIT
