@@ -237,10 +237,19 @@ Treat conclusions as hypotheses, not facts. Use wording like "the evidence is co
 Respond with ONLY a JSON object, no prose, no code fences."""
 
 
-def synthesize_threat_dossier(company_name: str, search_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Runs the full reasoning pipeline. Raises PulseGridError on any failed live call."""
+def synthesize_threat_dossier(company_name: str, search_data: Dict[str, Any], on_progress=None) -> Dict[str, Any]:
+    """Runs the full reasoning pipeline. Raises PulseGridError on any failed live call.
+
+    on_progress(n_done) is an optional UI hook: number of finished stages (0-4).
+    """
+    def progress(n: int) -> None:
+        if on_progress:
+            on_progress(n)
+
+    progress(0)
     raw_streams = search_data.get("raw_streams", [])
     if simulation_enabled():
+        progress(4)
         return _simulated_analysis(company_name, raw_streams)
 
     meta: Dict[str, Any] = {"model": NEBIUS_MODEL, "nebius_calls_ok": 0, "tavily_adversarial_ok": 0}
@@ -267,6 +276,7 @@ JSON schema:
     if not queries:
         queries = [f"{company_name} evidence against: {hypothesis}"[:300]]
     queries = [q if company_name.lower() in q.lower() else f"{company_name} {q}" for q in queries]
+    progress(2)
 
     # Step 2: adversarial Tavily search (parallel)
     adv_pool: Dict[str, Dict[str, Any]] = {}
@@ -300,6 +310,8 @@ JSON schema:
     else:
         alt = ""
 
+    progress(3)
+
     # Step 4: confidence computed in Python
     confidence = compute_confidence(supporting, contradicting, len(adv_pool))
 
@@ -319,6 +331,7 @@ JSON schema:
 {{"executive_summary": "...", "why_not_higher": "...", "recommendations": ["...", "...", "..."]}}"""
     t = _require(_chat_json(SYSTEM_PROMPT, p5, 1500, meta), {"executive_summary": str, "why_not_higher": str, "recommendations": list}, "narrative step")
 
+    progress(4)
     return {
         "company": company_name, "simulated": False, "hypothesis": hypothesis,
         "executive_summary": str(t.get("executive_summary", "")).strip(),

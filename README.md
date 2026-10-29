@@ -85,7 +85,8 @@ create table if not exists scan_cache (
 
 ## Project layout
 ```text
-├── app.py              # Streamlit UI, live-mode indicator, simulation banner
+├── app.py              # Streamlit app: run flow, session limits, results layout
+├── ui_theme.py         # Kolam theme: CSS + HTML/SVG components (all text escaped)
 ├── ai_engine.py        # Nemotron calls, evidence-ID resolution, Python confidence score
 ├── search_engine.py    # Tavily streams, retries/timeouts, snapshots (Supabase + local), diffing
 ├── config.py           # st.secrets / env config, DEMO_SIMULATION flag
