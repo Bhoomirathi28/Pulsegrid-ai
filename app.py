@@ -7,24 +7,21 @@ Streamlit Web Application featuring Multi-Stream Live Search, Adversarial Verifi
 Source Provenance Classification, and Executive Threat Dossier.
 """
 
-import os
+import html
 import streamlit as st
-from dotenv import load_dotenv
 
+from config import simulation_enabled, NEBIUS_MODEL
 from search_engine import (
     run_pulsegrid_search,
-    TAVILY_API_KEY,
-    SUPABASE_URL,
+    PulseGridError,
     supabase_client,
-    tavily_client
+    tavily_client,
 )
 from ai_engine import (
     synthesize_threat_dossier,
-    NEBIUS_API_KEY,
-    nebius_client
+    dossier_to_markdown,
+    nebius_client,
 )
-
-load_dotenv()
 
 # ==============================================================================
 # 1. Page Configuration & Executive Dark Theme
@@ -155,8 +152,22 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
         transform: translateY(-1px);
     }
+
+    .sim-banner {
+        background: #dc2626; color: #fff; font-weight: 800; font-size: 1.6rem;
+        text-align: center; padding: 1rem; border-radius: 10px; margin-bottom: 1rem;
+        letter-spacing: 0.05em;
+    }
+    .live-box {
+        background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.35);
+        border-radius: 10px; padding: 0.7rem 1rem; margin-bottom: 1rem; font-size: 0.9rem;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+SIMULATED = simulation_enabled()
+if SIMULATED:
+    st.markdown('<div class="sim-banner">SIMULATED DATA — NOT LIVE</div>', unsafe_allow_html=True)
 
 
 # ==============================================================================
@@ -169,32 +180,29 @@ with st.sidebar:
 
     st.markdown("### 🔌 System Health & Integrations")
 
-    # Tavily Status
+    if SIMULATED:
+        st.error("DEMO_SIMULATION=true — all data is simulated.")
     if tavily_client is not None:
-        st.markdown("🟢 **Tavily Search API**: `Connected` (4-Stream)")
+        st.markdown("🟢 **Tavily Search API**: `Configured`")
     else:
-        st.markdown("🔴 **Tavily Search API**: `Offline` (Using Mock Data)")
-
-    # Nebius Token Factory Status
+        st.markdown("🔴 **Tavily Search API**: `Not configured`")
     if nebius_client is not None:
-        st.markdown("🟢 **Nebius Token Factory**: `Connected` (Nemotron 3 120B)")
+        st.markdown(f"🟢 **Nebius Token Factory**: `Configured`  \nModel: `{NEBIUS_MODEL}`")
     else:
-        st.markdown("🟠 **Nebius Token Factory**: `Local Preview Mode`")
-
-    # Supabase Cache Status
+        st.markdown("🔴 **Nebius Token Factory**: `Not configured`")
     if supabase_client is not None:
-        st.markdown("🟢 **Supabase Cache**: `Connected` (Snapshot Diffing)")
+        st.markdown("🟢 **Supabase**: `Configured` (snapshot diffing)")
     else:
-        st.markdown("⚪ **Supabase Cache**: `Offline` (In-Memory Baseline)")
+        st.markdown("⚪ **Supabase**: `Not configured` (local JSON snapshot)")
 
     st.markdown("---")
     st.markdown("### 🛠️ Architecture Specs")
     st.markdown("""
-    - **Reasoning Model**: NVIDIA Nemotron-3 Super (120B)
+    - **Reasoning Model**: NVIDIA Nemotron (via Nebius)
     - **Inference Gateway**: Nebius Token Factory
     - **Data Streams**: Tavily Multi-Stream Parallel RAG
-    - **State Engine**: Supabase Snapshot Cache Diffing
-    - **Verification**: 3-Phase "Prove Me Wrong" Sweep
+    - **State**: Supabase / local snapshot diffing
+    - **Verification**: Adversarial "Prove Me Wrong" search
     """)
 
     st.markdown("---")
@@ -209,7 +217,7 @@ st.markdown("""
     <div class="main-title">⚡ PulseGrid AI: Autonomous Threat Scanner</div>
     <div class="main-subtitle">
         Scan live web streams across <b>Talent & Hiring</b>, <b>Product & Pricing</b>, <b>Customer Friction</b>, 
-        and <b>Market News</b>, then challenge findings through <b>3-Phase Adversarial Verification</b>.
+        and <b>Market News</b>, then challenge its own hypothesis with an <b>adversarial &quot;prove me wrong&quot; search</b>.
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -234,145 +242,182 @@ if "search_data" not in st.session_state:
     st.session_state.search_data = None
 if "dossier_content" not in st.session_state:
     st.session_state.dossier_content = None
+if "run_error" not in st.session_state:
+    st.session_state.run_error = None
 if "active_company" not in st.session_state:
     st.session_state.active_company = ""
 
 
 # ==============================================================================
-# 4. Live Progress Stepper (st.status)
+# 4. Investigation run (real calls; failures are shown, never faked)
 # ==============================================================================
+def esc(x) -> str:
+    return html.escape(str(x or ""), quote=True)
+
+
+def safe_href(url: str) -> str:
+    return esc(url) if str(url).startswith(("http://", "https://")) else "#"
+
+
 if launch_btn and company_input.strip():
     target_company = company_input.strip()
     st.session_state.active_company = target_company
+    st.session_state.search_data = None
+    st.session_state.dossier_content = None
+    st.session_state.run_error = None
 
     with st.status(f"⚡ Investigating '{target_company}'...", expanded=True) as status:
-        # Step 1: Multi-Stream Search
-        st.write("📡 **Step 1/3**: Scanning 4 parallel Tavily web streams across Talent, Pricing, Friction, and News...")
-        search_data = run_pulsegrid_search(target_company)
-        st.session_state.search_data = search_data
+        try:
+            st.write("📡 **Step 1/3**: Scanning 4 parallel Tavily streams (talent, product, friction, market)...")
+            search_data = run_pulsegrid_search(target_company)
+            st.session_state.search_data = search_data
 
-        # Step 2: Delta Signals
-        st.write("🔍 **Step 2/3**: Calculating Delta Signals vs historical snapshot in Supabase cache...")
-        deltas = search_data.get("delta_highlights", [])
-        st.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ Extracted {len(deltas)} delta signal highlights.")
+            st.write("🔍 **Step 2/3**: Comparing with previous snapshot...")
+            for h in search_data["delta_highlights"][:1]:
+                st.write(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ {h}")
 
-        # Step 3: Nemotron 3 Adversarial Synthesis
-        st.write("🧠 **Step 3/3**: Executing Nemotron 3 Adversarial Synthesis & 'Prove Me Wrong' Verification...")
-        dossier = synthesize_threat_dossier(target_company, search_data)
-        st.session_state.dossier_content = dossier
+            st.write("🧠 **Step 3/3**: Nemotron hypothesis → adversarial Tavily search → evidence classification → scoring...")
+            analysis = synthesize_threat_dossier(target_company, search_data)
+            st.session_state.dossier_content = analysis
+            status.update(label=f"✅ Investigation complete for {target_company}", state="complete", expanded=False)
+        except PulseGridError as e:
+            st.session_state.run_error = str(e)
+            status.update(label="❌ Investigation failed", state="error", expanded=True)
+        except Exception as e:  # unexpected - still show the real message
+            st.session_state.run_error = f"{type(e).__name__}: {e}"
+            status.update(label="❌ Investigation failed", state="error", expanded=True)
 
-        status.update(
-            label=f"✅ Investigation Complete for {target_company}!",
-            state="complete",
-            expanded=False
+if st.session_state.get("run_error"):
+    st.error(f"Live API call failed — no data was faked.\n\n{st.session_state.run_error}")
+
+
+# ==============================================================================
+# 5. Results
+# ==============================================================================
+def render_evidence(items):
+    if not items:
+        st.caption("None found.")
+    for e in items:
+        st.markdown(
+            f"- **{esc(e['source_type'])}** · {esc(e['claim'])} — "
+            f"[{esc(e['title'])}]({e['url']})  \n  <sub>{esc(e['domain'])}</sub>",
+            unsafe_allow_html=True,
         )
 
 
-# ==============================================================================
-# 5. Tabbed Results View
-# ==============================================================================
 if st.session_state.dossier_content and st.session_state.search_data:
     company_name = st.session_state.active_company
     search_data = st.session_state.search_data
-    dossier = st.session_state.dossier_content
+    d = st.session_state.dossier_content
+    conf = d["confidence"]
+    meta = d["meta"]
 
-    tab1, tab2, tab3 = st.tabs([
-        "⚡ Executive Threat Dossier",
-        "🔍 Delta Signals",
-        "🌐 Evidence Ledger (Raw Streams)"
-    ])
+    # Live mode indicator
+    if d.get("simulated"):
+        st.markdown('<div class="sim-banner">SIMULATED DATA — NOT LIVE</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(
+            f"<div class='live-box'>🟢 <b>LIVE MODE</b> · Model: <code>{esc(meta['model'])}</code> via Nebius Token Factory · "
+            f"Tavily: ✅ {search_data['tavily_calls_ok']}/4 streams + ✅ {meta['tavily_adversarial_ok']} adversarial queries · "
+            f"Nebius: ✅ {meta['nebius_calls_ok']} calls succeeded · Snapshot store: {esc(search_data['storage_backend'])}</div>",
+            unsafe_allow_html=True,
+        )
+    for w in search_data.get("storage_warnings", []):
+        st.warning(w)
 
-    # --------------------------------------------------------------------------
-    # Tab 1: Executive Threat Dossier
-    # --------------------------------------------------------------------------
+    tab1, tab2, tab3 = st.tabs(["⚡ Threat Dossier", "🔍 Changes Since Last Scan", "🌐 Evidence Ledger (Raw Streams)"])
+
     with tab1:
         col_header, col_download = st.columns([3, 1])
         with col_header:
             st.markdown(f"### 🛡️ Threat Intelligence Dossier: `{company_name}`")
         with col_download:
             st.download_button(
-                label="📥 Download Dossier (.md)",
-                data=dossier,
-                file_name=f"{company_name.lower()}_pulsegrid_dossier.md",
-                mime="text/markdown",
-                use_container_width=True
+                "📥 Download (.md)", data=dossier_to_markdown(d, search_data["delta_highlights"]),
+                file_name=f"{company_name.lower().replace(' ', '_')}_pulsegrid_dossier.md",
+                mime="text/markdown", use_container_width=True,
             )
-
         st.markdown("---")
-        st.markdown(dossier)
+        st.markdown("#### Executive summary")
+        st.write(d["executive_summary"])
 
-    # --------------------------------------------------------------------------
-    # Tab 2: Delta Signals
-    # --------------------------------------------------------------------------
+        st.markdown("#### 🧠 HYPOTHESIS — NOT FACT")
+        st.info(d["hypothesis"])
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(f"#### 🟢 Supporting evidence ({len(d['supporting'])})")
+            render_evidence(d["supporting"])
+        with c2:
+            st.markdown(f"#### 🔴 Contradicting evidence ({len(d['contradicting'])})")
+            if d["adversarial_queries"]:
+                st.caption("Queries run to disprove it: " + " | ".join(d["adversarial_queries"]))
+            render_evidence(d["contradicting"])
+            if d.get("alternative_explanation"):
+                st.markdown(f"**Alternative explanation:** {d['alternative_explanation']}")
+
+        st.markdown(f"#### 📊 Confidence: {conf['score']}% ({conf['label']})")
+        st.caption("Computed in Python from the evidence above — not generated by the model.")
+        st.progress(min(int(conf["score"]), 100))
+        st.table([
+            {"Factor": b["label"], "Weight": f"{int(b['weight'] * 100)}%", "Value (0-1)": b["value"],
+             "Points": b["points"], "Basis": b["note"]}
+            for b in conf["breakdown"]
+        ])
+        for cap in conf["caps"]:
+            st.warning(cap)
+        st.markdown("**Why not higher?** (model-written explanation)")
+        st.write(d["why_not_higher"])
+
+        st.markdown("#### 🚀 Recommendations")
+        for i, r in enumerate(d["recommendations"], 1):
+            st.markdown(f"{i}. {r}")
+
     with tab2:
-        st.markdown("### 🔍 Historical Baseline Delta Highlights")
-        st.caption("New or modified signals detected since the last baseline snapshot in Supabase.")
-
-        delta_signals = search_data.get("delta_highlights", [])
-        if delta_signals:
-            for signal in delta_signals:
-                st.markdown(f"<div class='delta-item'>⚡ {signal}</div>", unsafe_allow_html=True)
+        st.markdown("### 🔍 Changes Since Last Scan")
+        diff = search_data["diff"]
+        if diff["first_scan"]:
+            st.info("First scan — baseline saved. Rescan later to see what changed. (No changes are claimed.)")
         else:
-            st.info("No delta differences detected from prior scans. Baseline snapshot established.")
+            st.caption("Sources that appeared since the previous saved snapshot (matched by URL).")
+            for n in diff["new_signals"]:
+                st.markdown(
+                    f"<div class='delta-item'>⚡ [{esc(n['category'])}] "
+                    f"<a href='{safe_href(n['url'])}' target='_blank' style='color:#38bdf8'>{esc(n['title'])}</a> ({esc(n['provenance'])})</div>",
+                    unsafe_allow_html=True,
+                )
+            if not diff["new_signals"]:
+                st.info("No new sources since the previous scan.")
+            st.caption(f"{diff['gone_count']} previously seen source(s) no longer appeared.")
 
-    # --------------------------------------------------------------------------
-    # Tab 3: Evidence Ledger (Raw Streams)
-    # --------------------------------------------------------------------------
     with tab3:
         st.markdown("### 🌐 Evidence Ledger across 4 Parallel Streams")
-        st.caption("Raw intelligence retrieved via Tavily with source provenance classification.")
+        st.caption("Raw results retrieved via Tavily with source provenance classification.")
+        for stream in search_data["raw_streams"]:
+            results = stream.get("results", [])
+            with st.expander(f"📁 {stream.get('category', 'Stream')} ({len(results)} items)", expanded=False):
+                if not results:
+                    st.caption("No signals retrieved for this category.")
+                for idx, item in enumerate(results, 1):
+                    prov = item.get("provenance", "Secondary")
+                    badge = {"Primary": "badge-primary", "Community": "badge-community"}.get(prov, "badge-secondary")
+                    url = item.get("url", "")
+                    st.markdown(f"""
+                    <div class="glass-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <span style="font-weight:600;color:#f1f5f9;">{idx}. {esc(item.get('title'))}</span>
+                            <span class="{badge}">{esc(prov)}</span>
+                        </div>
+                        <div style="color:#94a3b8;font-size:0.9rem;line-height:1.5;margin-bottom:8px;">{esc((item.get('snippet') or '')[:500])}</div>
+                        <a href="{safe_href(url)}" target="_blank" style="color:#38bdf8;font-size:0.85rem;">🔗 {esc(url)}</a>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-        raw_streams = search_data.get("raw_streams", [])
-
-        if raw_streams:
-            for stream in raw_streams:
-                category = stream.get("category", "Intelligence Stream")
-                results = stream.get("results", [])
-
-                with st.expander(f"📁 {category} ({len(results)} items)", expanded=True):
-                    if not results:
-                        st.caption("No signals retrieved for this category.")
-                    else:
-                        for idx, item in enumerate(results, 1):
-                            provenance = item.get("provenance", "Secondary")
-                            badge_class = "badge-secondary"
-                            if provenance == "Primary":
-                                badge_class = "badge-primary"
-                            elif provenance == "Community":
-                                badge_class = "badge-community"
-
-                            title = item.get("title", "Untitled Signal")
-                            snippet = item.get("snippet", "No snippet available.")
-                            url = item.get("url", "#")
-
-                            st.markdown(f"""
-                            <div class="glass-card">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                    <span style="font-weight: 600; font-size: 1rem; color: #f1f5f9;">{idx}. {title}</span>
-                                    <span class="{badge_class}">{provenance}</span>
-                                </div>
-                                <div style="color: #94a3b8; font-size: 0.9rem; line-height: 1.5; margin-bottom: 8px;">
-                                    {snippet}
-                                </div>
-                                <div>
-                                    <a href="{url}" target="_blank" style="color: #38bdf8; text-decoration: none; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;">
-                                        🔗 {url}
-                                    </a>
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-        else:
-            st.info("No raw stream data available. Click 'Launch Investigation' above to scan.")
-
-elif not launch_btn:
+elif not launch_btn and not st.session_state.get("run_error"):
     st.markdown("""
     <div style="text-align: center; padding: 4rem 1rem; color: #64748b;">
         <div style="font-size: 3rem; margin-bottom: 1rem;">⚡</div>
-        <div style="font-size: 1.25rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.5rem;">
-            Ready to Investigate
-        </div>
-        <div>
-            Enter a target competitor above and click <b>Launch Investigation</b> to execute multi-stream threat scanning.
-        </div>
+        <div style="font-size: 1.25rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.5rem;">Ready to Investigate</div>
+        <div>Enter a target competitor above and click <b>Launch Investigation</b>.</div>
     </div>
     """, unsafe_allow_html=True)
