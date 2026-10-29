@@ -134,7 +134,7 @@ if d and sd:
     with t_chg:
         diff = sd["diff"]
         if diff["first_scan"]:
-            ui.render('<div class="stitle">Changes<span class="sub">परिवर्तन</span></div>'
+            ui.render(ui.section_label("What changed") +
                       '<div class="p2" style="margin-top:12px">First scan — baseline saved. Rescan later to see what changed. No changes are claimed.</div>')
         else:
             new = diff["new_signals"]
@@ -142,16 +142,16 @@ if d and sd:
                 f'<div class="qrow"><span class="qt">{ui.esc(n["category"])}</span><span class="qq">'
                 f'{ui.link(n["url"], n["title"])}</span></div>' for n in new) or \
                 '<div class="empty">No new sources since the previous scan.</div>'
-            ui.render(f'<div class="stitle">Changes<span class="sub">परिवर्तन · matched by source URL</span></div>'
-                      f'<div class="cap" style="margin-top:8px">{len(new)} new source(s); {diff["gone_count"]} previously seen source(s) did not appear.</div>{body}')
+            ui.render(ui.section_label("What changed") +
+                      f'<div class="cap" style="margin-top:8px">Matched by source URL: {len(new)} new source(s); {diff["gone_count"]} previously seen source(s) did not appear.</div>{body}')
 
     with t_src:
         for s in sd["raw_streams"]:
-            ui.render(f'<div class="stitle">{ui.esc(s.get("category", ""))} · {len(s.get("results", []))}</div>')
+            ui.render(ui.section_label(f'{s.get("category", "")} · {len(s.get("results", []))}', small=True))
             for it in s.get("results", []):
                 ui.render(f'<div class="ev sup" style="background:var(--inner);border-color:var(--line)"><div><div class="cl">{ui.esc(it.get("title"))}</div>'
                           f'<div class="cap">{ui.esc((it.get("snippet") or "")[:300])}</div>'
-                          f'<div class="mt"><span class="tag">{ui.esc(it.get("provenance"))}</span>{ui.link(it.get("url", ""), it.get("url", ""))}</div></div></div>')
+                          f'<div class="mt">{ui.tag_html(it.get("provenance"))}{ui.link(it.get("url", ""), it.get("url", ""))}</div></div></div>')
 
     ui.render(ui.spacer(32))
     a_left, a_right = st.columns([3, 2], gap="large")
@@ -193,7 +193,7 @@ elif not st.session_state.run_error and not (launch_btn and company_input.strip(
 
 # ---------------------------------------------------------------- smriti suggestions (need a decision, so shown above the fold)
 if st.session_state.suggestions:
-    ui.render('<div class="stitle" style="color:#E9A93B">Earlier predictions new evidence may resolve<span class="sub">स्मृति</span></div>')
+    ui.render(ui.section_label("Earlier predictions new evidence may resolve"))
     for i, sg in enumerate(st.session_state.suggestions):
         ui.render(ui.suggestion_html(sg))
         a1, a2, _ = st.columns([1, 1, 3])
@@ -225,7 +225,7 @@ try:
     rows = tr.list_predictions()
 except Exception as e:
     st.warning(f"Track record unavailable: {redact(e)}")
-with st.expander("Track record · स्मृति Smriti"):
+with st.expander("Track record"):
     ui.render(ui.smriti_html(rows, tr.pattern_stats(rows) if rows else [], store.backend()))
     pending = [r for r in rows if r.get("status") == "pending"]
     if pending:
@@ -241,3 +241,5 @@ with st.expander("Track record · स्मृति Smriti"):
                 st.rerun()
             except PulseGridError as e:
                 st.error(str(e))
+
+ui.render(ui.footer_html())

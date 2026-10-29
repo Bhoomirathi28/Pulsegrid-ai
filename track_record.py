@@ -1,7 +1,7 @@
 """
 track_record.py
 ===============
-स्मृति SMRITI - every hypothesis is saved as a prediction and can later be marked
+Track record (Smriti) - every hypothesis is saved as a prediction and can later be marked
 confirmed / refuted (by the user, optionally from a model suggestion that must cite a
 real retrieved URL). Pending predictions expire after 90 days.
 

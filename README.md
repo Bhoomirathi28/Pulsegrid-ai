@@ -47,7 +47,7 @@ Guardrails: output is parsed robustly (code fences and `<think>` blocks stripped
 
 Maximum reported score is 95%. The UI shows each factor's value and points.
 
-## Track record (स्मृति Smriti)
+## Track record
 - Every live investigation is saved automatically as a **prediction** (hypothesis, industry label, pattern signature = the stream types that supported it, confidence, factor breakdown).
 - Outcomes are recorded by **you**: accept or dismiss a model suggestion, or mark one manually. Nemotron may *suggest* "confirmed" or "refuted" on a rescan, but only if it cites a real retrieved URL; nothing is resolved without your click.
 - Predictions still pending after **90 days** are marked `expired`.
@@ -64,6 +64,20 @@ Setup:
 2. Create a Slack **incoming webhook** and set `SLACK_WEBHOOK_URL` (and optionally `APP_URL`). Email is optional: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL_TO`.
 3. In the app, click **Watch this company**, and **Send test alert** to check the webhook (the message is labelled TEST).
 4. For the daily run, add the same values as GitHub repo secrets. `watch_runner.py` scans at most 5 companies per run and refuses to run without Supabase (there would be no stored previous scan to compare against).
+
+## About the names
+Section names come from Nyaya, classical Indian logic, which required arguing against your own position (Purva Paksha) before reaching a verdict (Nirnaya). English is always the main label in the app; the Sanskrit appears small beside it.
+
+| Sanskrit | Romanized | Meaning | Where it appears in PulseGrid |
+|---|---|---|---|
+| अनुमान | Anumana | Inference | "Hypothesis — not fact" heading and the "Form hypothesis" stage |
+| प्रमाण | Pramana | Valid means of knowing (evidence) | "Supporting evidence" heading and the "Sort evidence" stage |
+| पूर्वपक्ष | Purva Paksha | The opposing position, argued first | "Self-challenge" heading and the "Challenge hypothesis" stage |
+| निर्णय | Nirnaya | Conclusion, verdict | "Verdict · how the score was calculated" heading and the "Verdict" stage |
+| स्मृति | Smriti | Memory, what is remembered | "Track record" heading |
+| गुप्तचर | Guptachar | Secret agent, scout | "Four agents in the field" heading on the live screen |
+
+In evidence tags, hovering "Official source" shows *Pratyaksha — direct evidence*, and "News report" / "Community post" show *Shabda — reported testimony*.
 
 ## Security notes
 - Web content is wrapped in `<web_content>` delimiters and the model is told it is untrusted data; model JSON is schema-checked and evidence URLs come only from Tavily results.

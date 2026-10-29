@@ -100,8 +100,7 @@ h1,h2,h3,.raj{font-family:'Rajdhani',sans-serif;}
 .st-done{color:var(--green-t);} .st-run{color:var(--turm2);} .st-wait{color:var(--muted);}
 .stage{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:14px 0;border-bottom:1px solid var(--line);}
 .stages{border-top:1px solid var(--line);margin-top:24px;}
-.stage .dv{font:500 18px 'Mukta',sans-serif;color:var(--turm);min-width:78px;}
-.stage .en{font:700 15px 'Rajdhani',sans-serif;letter-spacing:.1em;color:var(--cream);}
+.stage .en{flex:1 1 100%;font:600 15px 'Rajdhani',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--cream);}
 .stage .ds{flex:1 1 220px;font-size:14px;color:var(--text2);}
 .stage .stt{font:500 12px 'JetBrains Mono',monospace;letter-spacing:.08em;}
 .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:14px;}
@@ -150,7 +149,13 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .tt{width:100%;border-collapse:collapse;font-size:14px;min-width:560px;}
 .tt th{font:600 12px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
 .tt td{padding:10px;border-bottom:1px solid var(--line);color:var(--text2);vertical-align:top;}
-.sk{font:500 12px 'Mukta',sans-serif;letter-spacing:0;color:var(--muted);margin-left:8px;text-transform:none;}
+.sk{font:400 12px 'Mukta',sans-serif;letter-spacing:0;color:#A3A9C8;margin-left:10px;text-transform:none;}
+.sl{font:600 16px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--cream);line-height:1.35;}
+.sl.sm{font-size:14px;}
+.foot{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);font:400 12px 'Mukta',sans-serif;color:#A3A9C8;line-height:1.6;}
+.foot .info{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border:1px solid #A3A9C8;border-radius:50%;font-size:11px;margin-right:8px;cursor:help;}
+.tag[title]{cursor:help;}
+@media (max-width:640px){.sl .sk{display:block;margin-left:0;margin-top:2px;}}
 [role="tablist"]{gap:28px;border-bottom:1px solid var(--line);background:transparent !important;}
 [data-testid="stTab"]{background:transparent !important;padding:10px 0 !important;height:auto !important;}
 [data-testid="stTab"], [data-testid="stTab"] *{font-family:'Rajdhani',sans-serif !important;font-weight:600 !important;font-size:14px !important;letter-spacing:.12em;text-transform:uppercase;color:var(--muted) !important;}
@@ -190,13 +195,19 @@ LOGO = """<svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
 <circle cx="24" cy="34" r="1.8"/><circle cx="34" cy="34" r="1.8"/></g><circle cx="24" cy="24" r="3.4" fill="#E9A93B"/></svg>"""
 
 
+def section_label(english: str, devanagari: str = "", roman: str = "", small: bool = False) -> str:
+    """Heading used everywhere: English first and primary; Sanskrit (if any) after it, smaller and quieter."""
+    sk = f'<span class="sk">{esc(devanagari)} {esc(roman)}</span>' if devanagari else ""
+    return f'<div class="sl{" sm" if small else ""}">{esc(english)}{sk}</div>'
+
+
 def sim_banner_html() -> str:
     return '<div class="sim-banner">SIMULATED DATA — NOT LIVE</div>'
 
 
 def header_html() -> str:
     return f"""<div class="pg-head">{LOGO}<div><div class="t">PulseGrid AI</div>
-<div class="s">गुप्तचर · competitive intelligence that argues with itself</div></div></div>"""
+<div class="s">Competitive intelligence that argues with itself</div></div></div>"""
 
 
 def divider_html() -> str:
@@ -207,7 +218,7 @@ def idle_html(tavily_ok: bool, nebius_ok: bool, model: str) -> str:
     t = '<span class="st-done">Tavily ready</span>' if tavily_ok else '<span style="color:#FF9B8F">Tavily not configured</span>'
     n = f'<span class="st-done">Nebius ready · {esc(model)}</span>' if nebius_ok else '<span style="color:#FF9B8F">Nebius not configured</span>'
     return f"""<div class="panel alt" style="text-align:center;padding:56px 24px">
-<div class="eyebrow">गुप्तचर · ready</div><div class="h1">Name a company. Watch the agent argue with itself.</div>
+<div class="eyebrow">Ready</div><div class="h1">Name a company. Watch the agent argue with itself.</div>
 <div class="p2">Four agents search the live web, one hypothesis forms, then the agent tries to break it.</div>
 <div class="status mono" style="justify-content:center;margin-top:18px">{t}<span>·</span>{n}</div></div>"""
 
@@ -215,10 +226,10 @@ def idle_html(tavily_ok: bool, nebius_ok: bool, model: str) -> str:
 # ------------------------------------------------------------------ screen 1: live
 AGENTS = [("TALENT", "careers, roles"), ("PRODUCT", "pricing, docs"),
           ("FRICTION", "forums, reviews"), ("MARKET", "news, funding")]
-STAGES = [("प्रमाण", "PRAMANA", "Sort evidence: seen directly, or reported by others"),
-          ("अनुमान", "ANUMANA", "Connect the dots into one hypothesis"),
-          ("पूर्वपक्ष", "PURVA PAKSHA", "Search for evidence that proves it wrong"),
-          ("निर्णय", "NIRNAYA", "Verdict, confidence, and what to watch")]
+STAGES = [("Sort evidence", "प्रमाण", "Pramana", "Seen directly, or reported by others"),
+          ("Form hypothesis", "अनुमान", "Anumana", "Connect the dots into one hypothesis"),
+          ("Challenge hypothesis", "पूर्वपक्ष", "Purva Paksha", "Search for evidence that proves it wrong"),
+          ("Verdict", "निर्णय", "Nirnaya", "Confidence, and what to watch")]
 
 _GRID = [(60 + 70 * i, 60 + 70 * j) for j in range(5) for i in range(5) if (i, j) != (2, 2)]
 
@@ -270,24 +281,24 @@ def live_html(stream_counts: Optional[List[int]], stages_done: int) -> str:
         rows.append(f'<div class="agent"><span class="n">{name} <i>· {desc}</i></span>{st_html}</div>')
     stage_rows = []
     searching_done = stream_counts is not None
-    for i, (dv, en, ds) in enumerate(STAGES):
+    for i, (en, dv, rm, ds) in enumerate(STAGES):
         if i < stages_done:
             s, cls = "DONE", "st-done"
         elif i == stages_done and searching_done:
             s, cls = "RUNNING", "st-run"
         else:
             s, cls = "WAITING", "st-wait"
-        stage_rows.append(f'<div class="stage"><span class="dv">{dv}</span><span class="en">{en}</span>'
-                          f'<span class="ds">{ds}</span><span class="stt {cls}">{s}</span></div>')
+        stage_rows.append(f'<div class="stage"><span class="en">{esc(en)}<span class="sk">{esc(dv)} {esc(rm)}</span></span>'
+                          f'<span class="ds">{esc(ds)}</span><span class="stt {cls}">{s}</span></div>')
     total = sum(stream_counts) if stream_counts else 0
     svg = pulli_svg(total, 4 if stream_counts is None else 0, stages_done)
     return f"""<div class="row2"><div class="col">
-<div class="eyebrow">गुप्तचर · four agents in the field</div><div class="h1" style="font-size:40px">The pattern is being drawn.</div>
+{section_label("Four agents in the field", "गुप्तचर", "Guptachar")}<div class="h1" style="font-size:40px">The pattern is being drawn.</div>
 <div class="p2">Each agent searches one corner of the live web. Nothing is concluded until all four report.</div>
 <div style="margin-top:22px">{''.join(rows)}</div><div class="stages">{''.join(stage_rows)}</div></div>
 <div class="col"><div class="panel alt"><div class="svgbox">{svg}</div>
 <div class="legend"><span><b style="background:#5CC489"></b>confirmed signals</span><span><b style="background:#E9A93B"></b>arriving now</span><span><b style="background:#59618F"></b>no signal yet</span></div>
-<div class="cap" style="margin-top:14px">When the pattern closes, the hypothesis forms. Then Purva Paksha tries to break it.</div></div></div></div>"""
+<div class="cap" style="margin-top:14px">When the pattern closes, the hypothesis forms. Then it tries to prove itself wrong.</div></div></div></div>"""
 
 
 # ------------------------------------------------------------------ screen 2: results
@@ -307,15 +318,6 @@ def status_html(diff: Dict[str, Any], simulated: bool, model: str, backend: str)
 JAALI = """<svg viewBox="0 0 300 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true" fill="none" stroke="#E9A93B" stroke-width="1.2">
 <polygon points="150,10 290,130 150,250 10,130"/><rect x="60" y="40" width="180" height="180" rx="28"/><circle cx="150" cy="130" r="82"/>
 <path d="M150,48 C220,90 220,170 150,212 C80,170 80,90 150,48Z"/></svg>"""
-
-
-def hero_html(hypothesis: str, summary: str, conf: Dict[str, Any]) -> str:
-    score = conf["score"]
-    return f"""<div class="hero"><div class="panel main"><div class="eyebrow">अनुमान · ANUMANA · HYPOTHESIS — NOT FACT</div>
-<div class="h1">{esc(hypothesis)}</div><div class="p2">{esc(summary)}</div></div>
-<div class="panel alt side">{JAALI}<div class="in"><div class="label">Confidence</div>
-<div class="big">{score:g}<small>%</small></div><div class="pill">{esc(conf['label'])} confidence</div>
-<div class="cap">computed from evidence, not the model’s guess</div></div></div></div>"""
 
 
 _ROWS = [("TALENT", "Talent"), ("PRODUCT", "Product"), ("FRICTION", "Customer Friction"), ("MARKET", "Market")]
@@ -347,7 +349,7 @@ def pulse_grid_html(d: Dict[str, Any], raw_streams: List[Dict[str, Any]]) -> str
             else:
                 gray(x, y)
     y = 45 + 60 * 4
-    label(y, "PURVA PAKSHA")
+    label(y, "COUNTER-SEARCH")
     adv = d.get("adversarial_results", [])
     for j in range(12):
         x = 140 + 60 * j
@@ -373,7 +375,7 @@ def pulse_grid_html(d: Dict[str, Any], raw_streams: List[Dict[str, Any]]) -> str
             if e["url"] in pos and t in pos:
                 curves.append(curve(pos[e["url"]], pos[t], "#EE6A5C", 'stroke-dasharray="5 5"'))
     note = "" if curves else '<div class="cap" style="margin-top:8px">The model did not report links between evidence items for this scan.</div>'
-    return f"""<div class="panel"><div class="stitle">The Pulse Grid <span class="sub">· पुल्ली कोलम — dots are signals, lines are connections the model reported</span></div>
+    return f"""<div class="panel">{section_label("The Pulse Grid")}<div class="cap" style="margin-top:4px">Dots are signals; lines are connections the model reported.</div>
 <div class="legend"><span><b style="background:#5CC489"></b>supports</span><span><b style="background:#EE6A5C;border-radius:2px;transform:rotate(45deg)"></b>contradicts</span><span><b style="background:#59618F"></b>no signal</span><span><b style="background:#E9A93B;height:3px;border-radius:0"></b>reinforces</span><span><b style="background:#EE6A5C;height:3px;border-radius:0"></b>undermines</span></div>{note}
 <div class="svgbox" style="margin-top:12px"><svg viewBox="0 0 900 330" width="100%" style="min-width:640px" role="img" aria-label="Evidence grid by stream">{''.join(labels)}{''.join(curves)}{''.join(dots)}</svg></div></div>"""
 
@@ -382,32 +384,22 @@ def _domain(url: str) -> str:
     return urlparse(url).netloc.lower().removeprefix("www.")
 
 
-def _tag(source_type: str) -> str:
+def tag_html(source_type: str) -> str:
+    """Plain-English evidence tag; the Sanskrit term lives only in the hover tooltip."""
     if source_type == "Primary":
-        return "Pratyaksha · first-party source"
-    if source_type == "Community":
-        return "Shabda · community"
-    return "Shabda · news / reported"
+        text, tip = "Official source", "Pratyaksha — direct evidence"
+    elif source_type == "Community":
+        text, tip = "Community post", "Shabda — reported testimony"
+    else:
+        text, tip = "News report", "Shabda — reported testimony"
+    return f'<span class="tag" title="{esc(tip)}">{text}</span>'
 
 
 def evidence_card(e: Dict[str, Any], kind: str) -> str:
     badge = "+" if kind == "sup" else "−"
     date = f'<span>{esc(str(e["published_date"])[:10])}</span>' if e.get("published_date") else ""
     return f"""<div class="ev {kind}"><div class="bd">{badge}</div><div><div class="cl">{esc(e['claim'] or e['title'])}</div>
-<div class="mt"><span class="tag">{esc(_tag(e['source_type']))}</span>{link(e['url'], _domain(e['url']))}{date}</div></div></div>"""
-
-
-def evidence_columns_html(d: Dict[str, Any]) -> str:
-    sup = "".join(evidence_card(e, "sup") for e in d["supporting"]) or '<div class="empty">No supporting evidence.</div>'
-    con = "".join(evidence_card(e, "con") for e in d["contradicting"]) or \
-        '<div class="empty">The adversarial search found nothing that contradicts the hypothesis.</div>'
-    qs = "".join(f"<div>{esc(q)}</div>" for q in d.get("adversarial_queries", []))
-    qbox = f'<div class="qbox">Adversarial queries run:{qs}</div>' if qs else ""
-    alt = f'<div class="why"><div class="k">Alternative explanation</div><p>{esc(d["alternative_explanation"])}</p></div>' if d.get("alternative_explanation") else ""
-    return f"""<div class="row2"><div class="col"><div class="stitle" style="color:#7FD8A4">Supporting evidence · {len(d['supporting'])}</div>
-<div class="cap" style="margin-top:4px">प्रत्यक्ष Pratyaksha — seen directly · शब्द Shabda — reported by others</div>{sup}</div>
-<div class="col"><div class="stitle" style="color:#FF9B8F">Purva Paksha · {len(d['contradicting'])}</div>
-<div class="cap" style="margin-top:4px">पूर्वपक्ष — the agent states the strongest case against itself</div>{con}{qbox}{alt}</div></div>"""
+<div class="mt">{tag_html(e['source_type'])}{link(e['url'], _domain(e['url']))}{date}</div></div></div>"""
 
 
 def calc_html(d: Dict[str, Any]) -> str:
@@ -423,14 +415,9 @@ def calc_html(d: Dict[str, Any]) -> str:
     h = c.get("history")
     if h:
         base = f' · evidence score {c["base_score"]:g}%' if h.get("adjustment") else ""
-        caps += f'<div class="cap" style="margin-top:14px">स्मृति · {esc(h["message"])}{esc(base)}</div>'
-    return f"""<div class="panel"><div class="stitle">How {c['score']:g}% was calculated</div>{''.join(rows)}{caps}
+        caps += f'<div class="cap" style="margin-top:14px">Track record · {esc(h["message"])}{esc(base)}</div>'
+    return f"""<div class="panel">{section_label("Verdict · how the score was calculated", "निर्णय", "Nirnaya")}{''.join(rows)}{caps}
 <div class="why"><div class="k">Why not higher?</div><p>{esc(d['why_not_higher'])}</p></div></div>"""
-
-
-def watch_html(d: Dict[str, Any]) -> str:
-    items = "".join(f'<div class="watch"><b>{i}</b><span>{esc(r)}</span></div>' for i, r in enumerate(d["recommendations"], 1))
-    return f'<div class="panel"><div class="stitle">What to watch next</div>{items}</div>'
 
 
 # ------------------------------------------------------------------ smriti / track record
@@ -473,9 +460,9 @@ def smriti_html(rows: List[Dict[str, Any]], stats: List[Dict[str, Any]], backend
     else:
         stable = ""
     note = "" if backend == "supabase" else '<div class="cap" style="margin-top:8px">Stored in a local file (Supabase not configured) — history resets if the server restarts.</div>'
-    return f"""<div class="panel"><div class="stitle">स्मृति · Smriti · Track record <span class="sub">— past hypotheses and what actually happened</span></div>{note}
+    return f"""<div class="panel">{section_label("Track record", "स्मृति", "Smriti")}<div class="cap" style="margin-top:4px">Past hypotheses and what actually happened.</div>{note}
 <div style="margin-top:14px">{table}</div>
-<div class="stitle" style="margin-top:28px;font-size:15px">Pattern stats</div>
+<div style="margin-top:28px">{section_label("Pattern stats", small=True)}</div>
 <div class="cap" style="margin-top:4px">Confidence for a pattern is adjusted (max ±10) only after 5 resolved predictions with that pattern and industry.</div>
 <div style="margin-top:10px">{stable or '<div class="empty">No patterns yet.</div>'}</div></div>"""
 
@@ -516,9 +503,9 @@ def summary_html(d: Dict[str, Any]) -> str:
     segs = "".join(f'<i style="width:{hi - lo}%;background:{col}"></i>' for _, lo, hi, col in BANDS)
     marks = "".join(f'<span style="width:{hi - lo}%">{n}</span>' for n, lo, hi, _ in BANDS)
     facts = "".join(f"<span>{f}</span>" for f in key_facts(d))
-    return f"""<div class="sum"><div class="l">{label("Hypothesis — not fact", "अनुमान")}
+    return f"""<div class="sum"><div class="l">{section_label("Hypothesis — not fact", "अनुमान", "Anumana")}
 <div class="h1" style="margin-top:10px">{esc(d['hypothesis'])}</div></div>
-<div class="r">{label("Confidence", "निश्चय")}<div class="big">{score:g}<small>%</small></div>
+<div class="r">{label("Confidence")}<div class="big">{score:g}<small>%</small></div>
 <div class="scale-wrap"><div class="scale">{segs}</div><span class="mk" style="left:calc({min(score, 100):g}% - 1px)"></span></div>
 <div class="scale-l">{marks}</div>
 <div class="p2" style="margin-top:10px;font-size:15px">{esc(_next_band_line(score, c['label']))}</div>
@@ -530,8 +517,8 @@ def evidence_tab_html(d: Dict[str, Any]) -> str:
     sup = "".join(evidence_card(e, "sup") for e in d["supporting"]) or '<div class="empty">No supporting evidence.</div>'
     con = "".join(evidence_card(e, "con") for e in d["contradicting"]) or         '<div class="empty">The counter-search found nothing that contradicts the hypothesis.</div>'
     ctx = f'<div class="p2" style="margin-bottom:24px">{esc(d["executive_summary"])}</div>' if d.get("executive_summary") else ""
-    return f"""{ctx}<div class="row2"><div class="col"><div class="stitle" style="color:#7FD8A4">Supporting · {len(d['supporting'])}<span class="sub">प्रत्यक्ष seen directly · शब्द reported by others</span></div>{sup}</div>
-<div class="col"><div class="stitle" style="color:#FF9B8F">Contradicting · {len(d['contradicting'])}<span class="sub">पूर्वपक्ष</span></div>{con}</div></div>"""
+    return f"""{ctx}<div class="row2"><div class="col">{section_label("Supporting evidence", "प्रमाण", "Pramana")}<div class="cap" style="margin-top:4px">{len(d['supporting'])} item{'' if len(d['supporting']) == 1 else 's'}</div>{sup}</div>
+<div class="col">{section_label("Contradicting evidence")}<div class="cap" style="margin-top:4px">{len(d['contradicting'])} item{'' if len(d['contradicting']) == 1 else 's'}</div>{con}</div></div>"""
 
 
 def selfchallenge_html(d: Dict[str, Any]) -> str:
@@ -548,7 +535,7 @@ def selfchallenge_html(d: Dict[str, Any]) -> str:
         f'{"contradicts" if a["url"] in con_urls else "neutral"}</span><span class="qq">{link(a["url"], a["title"] or _domain(a["url"]))}</span></div>'
         for a in adv) or '<div class="empty">The counter-search returned no results, so the hypothesis was not meaningfully tested.</div>'
     alt = f'<div class="why"><div class="k">Alternative explanation</div><p>{esc(d["alternative_explanation"])}</p></div>' if d.get("alternative_explanation") else ""
-    return f"""<div class="stitle">Purva Paksha<span class="sub">पूर्वपक्ष · how it tried to prove itself wrong</span></div>
+    return f"""{section_label("Self-challenge · how it tried to prove itself wrong", "पूर्वपक्ष", "Purva Paksha")}
 <div style="margin-top:12px">{head}</div><div class="cap" style="margin-top:6px">Per-query outcomes are not tracked; results below are all counter-search results.</div>
 <div class="stitle" style="font-size:15px;margin-top:24px">Queries run</div>{qrows}
 <div class="stitle" style="font-size:15px;margin-top:24px">Counter-search results</div>{rrows}{alt}"""
@@ -556,7 +543,7 @@ def selfchallenge_html(d: Dict[str, Any]) -> str:
 
 def watch_next_html(d: Dict[str, Any]) -> str:
     items = "".join(f'<div class="watch"><b>{i}</b><span>{esc(r)}</span></div>' for i, r in enumerate(d["recommendations"], 1))
-    return f'<div class="stitle">Watch next<span class="sub">आगे</span></div>{items}'
+    return f'{section_label("Watch next")}{items}'
 
 
 def under_hood_html(d: Dict[str, Any], sd: Dict[str, Any]) -> str:
@@ -568,3 +555,10 @@ def under_hood_html(d: Dict[str, Any], sd: Dict[str, Any]) -> str:
             ("Pattern", " + ".join(d.get("pattern_signature", [])) or "—")]
     trs = "".join(f'<tr><td>{esc(k)}</td><td class="mono">{esc(v)}</td></tr>' for k, v in rows)
     return f'<table class="tt" style="min-width:0">{trs}</table>'
+
+
+def footer_html() -> str:
+    tip = "Nyaya is a school of classical Indian logic."
+    return (f'<div class="foot"><span class="info" title="{esc(tip)}">i</span>'
+            'Section names come from Nyaya, classical Indian logic, which required arguing against your own position '
+            '(Purva Paksha) before reaching a verdict (Nirnaya).</div>')
