@@ -11,6 +11,7 @@ when DEMO_SIMULATION=true is set explicitly.
 
 import json
 import os
+import re
 import time
 import concurrent.futures
 from urllib.parse import urlparse
@@ -19,7 +20,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from tavily import TavilyClient
 
 from config import (
-    TAVILY_API_KEY, SUPABASE_URL, SUPABASE_KEY, is_placeholder, simulation_enabled,
+    TAVILY_API_KEY, SUPABASE_URL, SUPABASE_KEY, is_placeholder, simulation_enabled, redact,
 )
 
 LOCAL_CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".pulsegrid_cache.json")
@@ -74,6 +75,10 @@ def classify_source_type(url: str, company_name: str) -> str:
         return "Secondary"
 
 
+def make_slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")[:60] or "unknown"
+
+
 def is_valid_url(url: str) -> bool:
     try:
         p = urlparse(url)
@@ -101,7 +106,7 @@ def tavily_search(query: str, max_results: int = 5, topic: str = "general") -> D
             if any(k in msg for k in ("401", "403", "unauthorized", "invalid api key", "forbidden")):
                 break  # retrying won't help
             time.sleep(1.5 * (attempt + 1))
-    raise PulseGridError(f"Tavily search failed for '{query[:60]}': {last}")
+    raise PulseGridError(f"Tavily search failed for '{query[:60]}': {redact(last)}")
 
 
 def normalize_results(response: Dict[str, Any], company_name: str) -> List[Dict[str, Any]]:
@@ -248,7 +253,7 @@ def run_pulsegrid_search(company_name: str) -> Dict[str, Any]:
     3. Diff against previous snapshot.
     4. Save the new snapshot (skipped in simulation mode so fake data never pollutes the cache).
     """
-    slug = company_name.strip().lower()
+    slug = make_slug(company_name)
     simulated = simulation_enabled()
     warnings: List[str] = []
 

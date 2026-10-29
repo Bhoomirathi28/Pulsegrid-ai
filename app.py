@@ -8,9 +8,10 @@ Source Provenance Classification, and Executive Threat Dossier.
 """
 
 import html
+import re
 import streamlit as st
 
-from config import simulation_enabled, NEBIUS_MODEL
+from config import simulation_enabled, NEBIUS_MODEL, redact
 from search_engine import (
     run_pulsegrid_search,
     PulseGridError,
@@ -259,8 +260,20 @@ def safe_href(url: str) -> str:
     return esc(url) if str(url).startswith(("http://", "https://")) else "#"
 
 
+MAX_RUNS_PER_SESSION = 5
+COMPANY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .,&'\-]{0,59}$")
+if "run_count" not in st.session_state:
+    st.session_state.run_count = 0
+
 if launch_btn and company_input.strip():
     target_company = company_input.strip()
+    if not COMPANY_RE.match(target_company):
+        st.error("Company name: 1-60 characters; letters, numbers, spaces and . , & ' - only.")
+        st.stop()
+    if st.session_state.run_count >= MAX_RUNS_PER_SESSION and not SIMULATED:
+        st.error(f"Limit reached: {MAX_RUNS_PER_SESSION} investigations per session. Reload the page to start a new session.")
+        st.stop()
+    st.session_state.run_count += 1
     st.session_state.active_company = target_company
     st.session_state.search_data = None
     st.session_state.dossier_content = None
@@ -281,10 +294,10 @@ if launch_btn and company_input.strip():
             st.session_state.dossier_content = analysis
             status.update(label=f"✅ Investigation complete for {target_company}", state="complete", expanded=False)
         except PulseGridError as e:
-            st.session_state.run_error = str(e)
+            st.session_state.run_error = redact(e)
             status.update(label="❌ Investigation failed", state="error", expanded=True)
         except Exception as e:  # unexpected - still show the real message
-            st.session_state.run_error = f"{type(e).__name__}: {e}"
+            st.session_state.run_error = f"{type(e).__name__}: {redact(e)}"
             status.update(label="❌ Investigation failed", state="error", expanded=True)
 
 if st.session_state.get("run_error"):

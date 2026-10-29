@@ -39,3 +39,12 @@ NEBIUS_API_KEY = get_secret("NEBIUS_API_KEY")
 NEBIUS_MODEL = get_secret("NEBIUS_MODEL", DEFAULT_MODEL) or DEFAULT_MODEL
 SUPABASE_URL = get_secret("SUPABASE_URL")
 SUPABASE_KEY = get_secret("SUPABASE_KEY")
+
+
+def redact(msg: object) -> str:
+    """Removes any configured secret values from an error message before it is shown."""
+    text = str(msg)
+    for secret in (TAVILY_API_KEY, NEBIUS_API_KEY, SUPABASE_KEY):
+        if secret and len(secret) >= 8:
+            text = text.replace(secret, "***")
+    return text
