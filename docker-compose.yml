@@ -11,6 +11,3 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
-    volumes:
-      # Persist local snapshot cache across restarts
-      - ./.pulsegrid_cache.json:/app/.pulsegrid_cache.json
