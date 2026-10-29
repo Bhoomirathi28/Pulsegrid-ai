@@ -1,0 +1,48 @@
+"""Offline checks for the non-network logic. Run: python test_logic.py"""
+import os
+os.environ.pop("DEMO_SIMULATION", None)
+
+import ai_engine as ai
+import search_engine as se
+
+
+def sup(n, typ="Primary", stream="Talent", date=None):
+    return [{"id": f"E{i}", "source_type": typ, "stream": stream, "published_date": date} for i in range(n)]
+
+
+# JSON parsing: fences, <think> blocks, surrounding prose
+assert ai._strip_to_json('```json\n{"a": 1}\n```') == '{"a": 1}'
+assert ai._strip_to_json('<think>x {y}</think>\nHere: {"a": 2} done') == '{"a": 2}'
+
+# confidence: deterministic and evidence-driven
+strong = ai.compute_confidence(sup(6, "Primary"), [], 4)
+weak = ai.compute_confidence(sup(1, "Community"), sup(3, "Primary"), 4)
+assert strong["score"] > weak["score"], (strong["score"], weak["score"])
+assert ai.compute_confidence([], [], 3)["score"] == 0
+assert ai.compute_confidence(sup(6), [], 0)["score"] <= 60          # untested hypothesis is capped
+assert abs(sum(f[2] for f in ai.CONFIDENCE_FACTORS) - 1.0) < 1e-9
+assert ai.compute_confidence(sup(6), [], 4)["score"] <= 95
+
+# URL resolution: invented IDs are dropped, URLs come only from the pool
+pool = {"E1": {"title": "t", "url": "https://a.com/x", "provenance": "Primary", "stream": "S"}}
+out = ai._resolve([{"evidence_id": "E1", "claim": "c"}, {"evidence_id": "E99", "claim": "fake"}], pool, "supporting")
+assert len(out) == 1 and out[0]["url"] == "https://a.com/x"
+
+# snapshot diff
+cur = [{"category": "X", "results": [{"url": "https://a.com", "title": "A", "provenance": "Primary"}]}]
+d = se.compute_snapshot_diff(None, cur)
+assert d["first_scan"] and "First scan" in d["highlights"][0] and not d["new_signals"]
+d = se.compute_snapshot_diff(cur, cur)
+assert not d["first_scan"] and not d["new_signals"]
+d = se.compute_snapshot_diff([{"category": "X", "results": []}], cur)
+assert len(d["new_signals"]) == 1
+
+# no silent fallback: without keys/flag, a stream search must raise, not fake data
+se.tavily_client = None
+try:
+    se.search_stream("Acme", "Talent & Hiring Signals", "q")
+    raise SystemExit("FAIL: expected PulseGridError")
+except se.PulseGridError:
+    pass
+
+print("all offline checks passed")
