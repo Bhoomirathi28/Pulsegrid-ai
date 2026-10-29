@@ -151,6 +151,29 @@ def _resolve(refs: Any, pool: Dict[str, Dict[str, Any]], stance: str) -> List[Di
     return out
 
 
+def _resolve_links(raw: Any, supporting: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    """Keeps only links whose both ends are real supporting evidence (matched by ID, returned as URLs)."""
+    by_id = {e["id"]: e["url"] for e in supporting}
+    out, seen = [], set()
+    for r in raw if isinstance(raw, list) else []:
+        if not isinstance(r, dict):
+            continue
+        a, b = str(r.get("from", "")).strip(), str(r.get("to", "")).strip()
+        if a in by_id and b in by_id and a != b and (a, b) not in seen and (b, a) not in seen:
+            seen.add((a, b))
+            out.append({"from_url": by_id[a], "to_url": by_id[b]})
+    return out[:5]
+
+
+def _attach_targets(raw: Any, contradicting: List[Dict[str, Any]], supporting: List[Dict[str, Any]]) -> None:
+    """Adds 'target_urls' to each contradicting item from the model's cited supporting IDs."""
+    by_id = {e["id"]: e["url"] for e in supporting}
+    claims = {str(r.get("evidence_id", "")).strip(): r.get("targets") for r in raw if isinstance(r, dict)} if isinstance(raw, list) else {}
+    for e in contradicting:
+        t = claims.get(e["id"])
+        e["target_urls"] = [by_id[x] for x in (str(i).strip() for i in (t if isinstance(t, list) else [])) if x in by_id][:3]
+
+
 # ------------------------------------------------------------------ confidence (pure Python)
 def _age_days(published: Optional[str]) -> Optional[float]:
     if not published:
@@ -223,7 +246,7 @@ def _simulated_analysis(company_name: str, raw_streams: List[Dict[str, Any]]) ->
         "company": company_name, "simulated": True,
         "hypothesis": f"[SIMULATED] Evidence is consistent with {company_name} shifting toward enterprise customers.",
         "executive_summary": "[SIMULATED] No model was called.",
-        "supporting": sup, "contradicting": con, "adversarial_queries": [], "adversarial_results": [],
+        "supporting": sup, "contradicting": con, "adversarial_queries": [], "adversarial_results": [], "links": [],
         "confidence": conf, "why_not_higher": "[SIMULATED] No model was called.",
         "recommendations": ["[SIMULATED]"], "meta": {"model": "none (simulation)", "nebius_calls_ok": 0, "tavily_adversarial_ok": 0},
     }
@@ -266,12 +289,14 @@ EVIDENCE:
 Form exactly ONE strategic hypothesis about {company_name}'s direction that the evidence is consistent with,
 list the evidence that supports it, and write 2 short keyword-style web search queries (under 12 words, not questions) that would surface evidence AGAINST the hypothesis.
 JSON schema:
-{{"hypothesis": "one sentence", "supporting": [{{"evidence_id": "E1", "claim": "what this item shows"}}], "counter_queries": ["...", "..."]}}"""
+{{"hypothesis": "one sentence", "supporting": [{{"evidence_id": "E1", "claim": "what this item shows"}}], "links": [{{"from": "E1", "to": "E2"}}], "counter_queries": ["...", "..."]}}
+"links" = up to 5 pairs of the supporting items that reinforce each other (same story, from different angles). Use only IDs you listed under supporting. May be empty."""
     h = _require(_chat_json(SYSTEM_PROMPT, p1, 2000, meta), {"hypothesis": str, "supporting": list, "counter_queries": list}, "hypothesis step")
     hypothesis = str(h.get("hypothesis", "")).strip()
     if not hypothesis:
         raise PulseGridError("Model returned no hypothesis.")
     supporting = _resolve(h.get("supporting"), pool, "supporting")
+    links = _resolve_links(h.get("links"), supporting)
     queries = [str(q).strip() for q in (h.get("counter_queries") or []) if str(q).strip()][:2]
     if not queries:
         queries = [f"{company_name} evidence against: {hypothesis}"[:300]]
@@ -303,9 +328,11 @@ ADVERSARIAL SEARCH RESULTS (searched specifically to disprove the hypothesis):
 
 Which of these items genuinely contradict or weaken the hypothesis? Only include items that really do; omit irrelevant ones.
 JSON schema:
-{{"contradicting": [{{"evidence_id": "A1", "claim": "how it contradicts"}}], "alternative_explanation": "one sentence or empty"}}"""
+{{"contradicting": [{{"evidence_id": "A1", "claim": "how it contradicts", "targets": ["E1"]}}], "alternative_explanation": "one sentence or empty"}}
+"targets" = IDs of the supporting evidence this result undermines, from this list: {", ".join(e["id"] for e in supporting) or "none"}. May be empty."""
         c = _require(_chat_json(SYSTEM_PROMPT, p3, 1500, meta), {"contradicting": list}, "adversarial step")
         contradicting = _resolve(c.get("contradicting"), adv_pool, "contradicting")
+        _attach_targets(c.get("contradicting"), contradicting, supporting)
         alt = str(c.get("alternative_explanation", "")).strip()
     else:
         alt = ""
@@ -338,7 +365,7 @@ JSON schema:
         "supporting": supporting, "contradicting": contradicting,
         "adversarial_queries": queries,
         "adversarial_results": [{"id": k, "title": v["title"], "url": v["url"], "source_type": v["provenance"]} for k, v in adv_pool.items()],
-        "alternative_explanation": alt, "confidence": confidence,
+        "alternative_explanation": alt, "links": links, "confidence": confidence,
         "why_not_higher": str(t.get("why_not_higher", "")).strip(),
         "recommendations": [str(r) for r in (t.get("recommendations") or [])][:5],
         "meta": meta,

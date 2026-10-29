@@ -302,13 +302,13 @@ _ROWS = [("TALENT", "Talent"), ("PRODUCT", "Product"), ("FRICTION", "Customer Fr
 def pulse_grid_html(d: Dict[str, Any], raw_streams: List[Dict[str, Any]]) -> str:
     sup = {e["url"] for e in d["supporting"]}
     con = {e["url"] for e in d["contradicting"]}
-    out = []
+    labels, dots, pos = [], [], {}
 
     def label(y, txt):
-        out.append(f'<text x="0" y="{y + 4}" fill="#A7ACC8" font-family="Rajdhani" font-weight="600" font-size="13" letter-spacing="1.6">{txt}</text>')
+        labels.append(f'<text x="0" y="{y + 4}" fill="#A7ACC8" font-family="Rajdhani" font-weight="600" font-size="13" letter-spacing="1.6">{txt}</text>')
 
     def gray(x, y):
-        out.append(f'<circle cx="{x}" cy="{y}" r="4" fill="#59618F"/>')
+        dots.append(f'<circle cx="{x}" cy="{y}" r="4" fill="#59618F"/>')
 
     for i, (lab, key) in enumerate(_ROWS):
         y = 45 + 60 * i
@@ -320,7 +320,8 @@ def pulse_grid_html(d: Dict[str, Any], raw_streams: List[Dict[str, Any]]) -> str
         for j in range(12):
             x = 140 + 60 * j
             if j < len(items) and items[j].get("url") in sup:
-                out.append(f'<circle cx="{x}" cy="{y}" r="7" fill="#5CC489"><title>{esc(items[j].get("title"))}</title></circle>')
+                pos.setdefault(items[j]["url"], (x, y))
+                dots.append(f'<circle cx="{x}" cy="{y}" r="7" fill="#5CC489"><title>{esc(items[j].get("title"))}</title></circle>')
             else:
                 gray(x, y)
     y = 45 + 60 * 4
@@ -329,12 +330,30 @@ def pulse_grid_html(d: Dict[str, Any], raw_streams: List[Dict[str, Any]]) -> str
     for j in range(12):
         x = 140 + 60 * j
         if j < len(adv) and adv[j]["url"] in con:
-            out.append(f'<rect x="{x - 6}" y="{y - 6}" width="12" height="12" fill="#EE6A5C" transform="rotate(45 {x} {y})"><title>{esc(adv[j]["title"])}</title></rect>')
+            pos.setdefault(adv[j]["url"], (x, y))
+            dots.append(f'<rect x="{x - 6}" y="{y - 6}" width="12" height="12" fill="#EE6A5C" transform="rotate(45 {x} {y})"><title>{esc(adv[j]["title"])}</title></rect>')
         else:
             gray(x, y)
-    return f"""<div class="panel"><div class="stitle">The Pulse Grid <span class="sub">· पुल्ली कोलम — dots are signals</span></div>
-<div class="legend"><span><b style="background:#5CC489"></b>supports</span><span><b style="background:#EE6A5C;border-radius:2px;transform:rotate(45deg)"></b>contradicts</span><span><b style="background:#59618F"></b>no signal</span></div>
-<div class="svgbox" style="margin-top:12px"><svg viewBox="0 0 900 330" width="100%" style="min-width:640px" role="img" aria-label="Evidence grid by stream">{''.join(out)}</svg></div></div>"""
+
+    def curve(p1, p2, color, dash=""):
+        (x1, y1), (x2, y2) = p1, p2
+        bulge = -34 if y1 == y2 else 0
+        cx, cy = (x1 + x2) / 2 + (30 if y1 != y2 else 0), (y1 + y2) / 2 + bulge
+        return (f'<path d="M{x1},{y1} Q{cx:.0f},{cy:.0f} {x2},{y2}" fill="none" stroke="{color}" stroke-width="1.8" '
+                f'stroke-linecap="round" opacity=".85" {dash}/>')
+
+    curves = []
+    for l in d.get("links", []):
+        if l["from_url"] in pos and l["to_url"] in pos:
+            curves.append(curve(pos[l["from_url"]], pos[l["to_url"]], "#E9A93B"))
+    for e in d["contradicting"]:
+        for t in e.get("target_urls", []):
+            if e["url"] in pos and t in pos:
+                curves.append(curve(pos[e["url"]], pos[t], "#EE6A5C", 'stroke-dasharray="5 5"'))
+    note = "" if curves else '<div class="cap" style="margin-top:8px">The model did not report links between evidence items for this scan.</div>'
+    return f"""<div class="panel"><div class="stitle">The Pulse Grid <span class="sub">· पुल्ली कोलम — dots are signals, lines are connections the model reported</span></div>
+<div class="legend"><span><b style="background:#5CC489"></b>supports</span><span><b style="background:#EE6A5C;border-radius:2px;transform:rotate(45deg)"></b>contradicts</span><span><b style="background:#59618F"></b>no signal</span><span><b style="background:#E9A93B;height:3px;border-radius:0"></b>reinforces</span><span><b style="background:#EE6A5C;height:3px;border-radius:0"></b>undermines</span></div>{note}
+<div class="svgbox" style="margin-top:12px"><svg viewBox="0 0 900 330" width="100%" style="min-width:640px" role="img" aria-label="Evidence grid by stream">{''.join(labels)}{''.join(curves)}{''.join(dots)}</svg></div></div>"""
 
 
 def _domain(url: str) -> str:

@@ -58,3 +58,14 @@ import config
 config.TAVILY_API_KEY = "tvly-secretsecret"
 assert "secretsecret" not in config.redact("401 for key tvly-secretsecret")
 print("security checks passed")
+
+# links: only real supporting IDs survive; model-invented IDs are dropped
+sup_items = [{"id": "E1", "url": "https://a.com/1"}, {"id": "E2", "url": "https://b.com/2"}]
+lk = ai._resolve_links([{"from": "E1", "to": "E2"}, {"from": "E1", "to": "E9"}, {"from": "E2", "to": "E1"}, "junk"], sup_items)
+assert lk == [{"from_url": "https://a.com/1", "to_url": "https://b.com/2"}], lk
+con_items = [{"id": "A1", "url": "https://c.com"}]
+ai._attach_targets([{"evidence_id": "A1", "targets": ["E2", "E7"]}], con_items, sup_items)
+assert con_items[0]["target_urls"] == ["https://b.com/2"]
+ai._attach_targets(None, con_items, sup_items)
+assert con_items[0]["target_urls"] == []
+print("link checks passed")
