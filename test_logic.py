@@ -69,3 +69,13 @@ assert con_items[0]["target_urls"] == ["https://b.com/2"]
 ai._attach_targets(None, con_items, sup_items)
 assert con_items[0]["target_urls"] == []
 print("link checks passed")
+
+# JSON extraction from messy reasoning-model output (real failure cases)
+assert ai._parse_json('We need JSON. {"hypothesis": "...", "supporting": [\n ...\n]}\nFinal: {"hypothesis": "h", "supporting": []}')["hypothesis"] == "h"
+assert ai._parse_json('{E1, E2}\n```json\n{"a": 1, "b": 2}\n```')["b"] == 2
+assert ai._parse_json('<think>{"x": 1}</think>{"hypothesis": "h", "supporting": [], "links": []}')["hypothesis"] == "h"
+try:
+    ai._parse_json("no json here"); raise SystemExit("FAIL")
+except ValueError:
+    pass
+print("json extraction checks passed")

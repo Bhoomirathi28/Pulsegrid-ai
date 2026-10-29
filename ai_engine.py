@@ -57,12 +57,39 @@ def _strip_to_json(text: str) -> str:
     return text
 
 
+def _parse_json(text: str) -> Dict[str, Any]:
+    """Finds every complete JSON object in the text and returns the most complete one.
+
+    Reasoning models sometimes echo the schema template or think out loud before the
+    answer; a first-'{'-to-last-'}' slice would glue those together into invalid JSON.
+    """
+    text = re.sub(r"<think>.*?</think>", "", text or "", flags=re.S)
+    text = re.sub(r"```(?:json)?", "", text, flags=re.I)
+    dec = json.JSONDecoder()
+    best: Optional[Dict[str, Any]] = None
+    i = text.find("{")
+    while i != -1:
+        try:
+            obj, end = dec.raw_decode(text, i)
+        except ValueError:
+            i = text.find("{", i + 1)
+            continue
+        if isinstance(obj, dict) and (best is None or len(obj) >= len(best)):
+            best = obj
+        i = text.find("{", end)
+    if best is None:
+        raise ValueError("no complete JSON object found")
+    return best
+
+
 def _chat(messages: List[Dict[str, str]], max_tokens: int, meta: Dict[str, Any]) -> str:
     if nebius_client is None:
         raise PulseGridError("Nebius is not configured (NEBIUS_API_KEY missing or placeholder).")
     try:
+        # JSON mode: the answer comes back as clean JSON; Nemotron's reasoning goes to reasoning_content
         resp = nebius_client.chat.completions.create(
             model=NEBIUS_MODEL, messages=messages, temperature=0.2, max_tokens=max_tokens,
+            response_format={"type": "json_object"},
         )
     except Exception as e:
         raise PulseGridError(
@@ -77,22 +104,23 @@ def _chat(messages: List[Dict[str, str]], max_tokens: int, meta: Dict[str, Any])
     return content
 
 
-def _chat_json(system: str, user: str, max_tokens: int, meta: Dict[str, Any]) -> Dict[str, Any]:
-    """Calls the model and parses JSON; one retry on invalid JSON."""
+def _chat_json(system: str, user: str, max_tokens: int, meta: Dict[str, Any],
+               schema: Dict[str, type], where: str) -> Dict[str, Any]:
+    """Calls the model, parses JSON and checks required fields; one retry if either fails."""
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-    raw = _chat(messages, max_tokens, meta)
     try:
-        return json.loads(_strip_to_json(raw))
-    except ValueError:
-        messages += [
-            {"role": "assistant", "content": raw[:4000]},
-            {"role": "user", "content": "That was not valid JSON. Reply again with ONLY the JSON object, no prose, no code fences."},
-        ]
+        return _require(_parse_json(_chat(messages, max_tokens, meta)), schema, where)
+    except (ValueError, PulseGridError) as first:
+        if isinstance(first, PulseGridError) and "Nebius" in str(first):
+            raise  # API failure, not a format problem
+        # fresh retry; don't feed the broken output back in
+        fields = ", ".join(f'"{k}"' for k in schema)
+        messages[-1] = {"role": "user", "content": user + f"\n\nReply with ONLY one valid JSON object containing {fields}. No prose, no placeholders like \"...\"."}
         raw2 = _chat(messages, max_tokens, meta)
         try:
-            return json.loads(_strip_to_json(raw2))
+            return _require(_parse_json(raw2), schema, where)
         except ValueError as e:
-            raise PulseGridError(f"Model returned invalid JSON twice: {e}. Last output: {raw2[:300]!r}")
+            raise PulseGridError(f"Model returned invalid JSON twice ({where}): {e}. Last output: {raw2[:300]!r}")
 
 
 # ------------------------------------------------------------------ evidence pool
@@ -291,7 +319,7 @@ list the evidence that supports it, and write 2 short keyword-style web search q
 JSON schema:
 {{"hypothesis": "one sentence", "supporting": [{{"evidence_id": "E1", "claim": "what this item shows"}}], "links": [{{"from": "E1", "to": "E2"}}], "counter_queries": ["...", "..."]}}
 "links" = up to 5 pairs of the supporting items that reinforce each other (same story, from different angles). Use only IDs you listed under supporting. May be empty."""
-    h = _require(_chat_json(SYSTEM_PROMPT, p1, 2000, meta), {"hypothesis": str, "supporting": list, "counter_queries": list}, "hypothesis step")
+    h = _chat_json(SYSTEM_PROMPT, p1, 4000, meta, {"hypothesis": str, "supporting": list}, "hypothesis step")
     hypothesis = str(h.get("hypothesis", "")).strip()
     if not hypothesis:
         raise PulseGridError("Model returned no hypothesis.")
@@ -330,7 +358,7 @@ Which of these items genuinely contradict or weaken the hypothesis? Only include
 JSON schema:
 {{"contradicting": [{{"evidence_id": "A1", "claim": "how it contradicts", "targets": ["E1"]}}], "alternative_explanation": "one sentence or empty"}}
 "targets" = IDs of the supporting evidence this result undermines, from this list: {", ".join(e["id"] for e in supporting) or "none"}. May be empty."""
-        c = _require(_chat_json(SYSTEM_PROMPT, p3, 1500, meta), {"contradicting": list}, "adversarial step")
+        c = _chat_json(SYSTEM_PROMPT, p3, 3000, meta, {"contradicting": list}, "adversarial step")
         contradicting = _resolve(c.get("contradicting"), adv_pool, "contradicting")
         _attach_targets(c.get("contradicting"), contradicting, supporting)
         alt = str(c.get("alternative_explanation", "")).strip()
@@ -356,7 +384,7 @@ Write: a 2-3 sentence executive summary; a "Why not higher?" explanation (2-4 se
 Do not state a different confidence number. Keep hypothesis-style wording.
 JSON schema:
 {{"executive_summary": "...", "why_not_higher": "...", "recommendations": ["...", "...", "..."]}}"""
-    t = _require(_chat_json(SYSTEM_PROMPT, p5, 1500, meta), {"executive_summary": str, "why_not_higher": str, "recommendations": list}, "narrative step")
+    t = _chat_json(SYSTEM_PROMPT, p5, 3000, meta, {"executive_summary": str, "why_not_higher": str, "recommendations": list}, "narrative step")
 
     progress(4)
     return {
