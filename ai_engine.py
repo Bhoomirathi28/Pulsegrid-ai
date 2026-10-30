@@ -516,6 +516,76 @@ def compute_confidence(supporting: List[Dict[str, Any]], contradicting: List[Dic
     return base
 
 
+# ------------------------------------------------------------------ counter-search log
+# (key, label, intent). The first four are Tavily searches; TIMING is checked in Python from publish dates.
+COUNTER_CATEGORIES = [
+    ("cuts", "CUTS", "Look for layoffs, budget cuts, shutdowns or discontinued products that cut against it"),
+    ("statements", "STATEMENTS", "Look for official statements or denials that contradict it"),
+    ("alternative", "ALTERNATIVE", "Look for a different explanation for the same signals"),
+    ("absence", "ABSENCE", "Look for evidence that should exist if it were true (launches, customers, filings)"),
+    ("timing", "TIMING", "Check that the supporting evidence is recent (from publish dates, no search)"),
+]
+SEARCHED_CATEGORIES = [c for c in COUNTER_CATEGORIES if c[0] != "timing"]
+STALE_DAYS = 180
+
+
+def counter_queries(company_name: str, hypothesis: str, raw: Any) -> List[Dict[str, str]]:
+    """One query per searched category: the model's query if it gave one, else a fixed Python template."""
+    given: Dict[str, str] = {}
+    if isinstance(raw, dict):
+        given = {str(k).strip().lower(): str(v).strip() for k, v in raw.items() if str(v).strip()}
+    elif isinstance(raw, list):   # older prompt shape: a plain list, used in category order
+        given = {c[0]: str(q).strip() for c, q in zip(SEARCHED_CATEGORIES, raw) if str(q).strip()}
+    topic = " ".join(re.findall(r"[A-Za-z0-9-]+", hypothesis)[:8])
+    templates = {"cuts": f"{company_name} layoffs cuts discontinued shut down",
+                 "statements": f"{company_name} official statement denies {topic}",
+                 "alternative": f"{company_name} real reason {topic}",
+                 "absence": f"{company_name} announcement launch {topic}"}
+    out = []
+    for key, label, intent in SEARCHED_CATEGORIES:
+        q = given.get(key) or templates[key]
+        q = q if company_name.lower() in q.lower() else f"{company_name} {q}"
+        out.append({"key": key, "category": label, "intent": intent, "query": q[:300]})
+    return out
+
+
+def timing_check(supporting: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """TIMING: from the supporting items' publish dates (needs weight fields from compute_confidence)."""
+    key, label, intent = COUNTER_CATEGORIES[-1]
+    dated = sorted((e for e in supporting if e.get("age_days") is not None), key=lambda e: e["age_days"])
+    row = {"key": key, "category": label, "intent": intent, "query": "", "results": len(dated),
+           "top_url": dated[0]["url"] if dated else "", "top_title": dated[0].get("title", "") if dated else ""}
+    if not dated:
+        return {**row, "outcome": "not checked", "note": "No supporting item has a publish date."}
+    newest, oldest = dated[0]["age_days"], dated[-1]["age_days"]
+    note = f"{len(dated)} of {len(supporting)} supporting items dated; newest {newest:.0f}d, oldest {oldest:.0f}d old."
+    if newest > STALE_DAYS:
+        return {**row, "outcome": "contradicts", "note": note + f" Nothing newer than {STALE_DAYS} days: the signals may be stale."}
+    return {**row, "outcome": "neutral", "note": note}
+
+
+def build_counter_log(runs: List[Dict[str, Any]], contradicting: List[Dict[str, Any]],
+                      supporting: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Per challenge type: intent, exact query, result count, outcome, top URL. Outcomes come from
+    the classified results: contradicts / neutral / nothing found / not checked (search failed)."""
+    con_urls = {e["url"] for e in contradicting}
+    log = []
+    for r in runs:
+        urls = r.get("urls", [])
+        if r.get("error"):
+            outcome, top = "not checked", ""
+        elif not urls:
+            outcome, top = "nothing found", ""
+        else:
+            hits = [u for u in urls if u in con_urls]
+            outcome, top = ("contradicts", hits[0]) if hits else ("neutral", urls[0])
+        log.append({"key": r["key"], "category": r["category"], "intent": r["intent"], "query": r["query"],
+                    "results": len(urls), "outcome": outcome, "top_url": top,
+                    "top_title": r.get("titles", {}).get(top, ""), "note": r.get("error", "")})
+    log.append(timing_check(supporting))
+    return log
+
+
 # ------------------------------------------------------------------ simulation
 def _simulated_analysis(company_name: str, raw_streams: List[Dict[str, Any]]) -> Dict[str, Any]:
     pool = _build_pool(raw_streams)
@@ -567,9 +637,11 @@ EVIDENCE:
 {_pool_text(pool)}
 
 Form exactly ONE strategic hypothesis about {company_name}'s direction that the evidence is consistent with,
-list the evidence that supports it, and write 2 short keyword-style web search queries (under 12 words, not questions) that would surface evidence AGAINST the hypothesis.
+list the evidence that supports it, and write 4 short keyword-style web search queries (under 12 words, not questions) that would surface evidence AGAINST the hypothesis, one per challenge type:
+cuts = layoffs, budget cuts, shutdowns or discontinued products; statements = official statements or denials;
+alternative = a different explanation for the same signals; absence = evidence that should exist if the hypothesis were true.
 JSON schema:
-{{"hypothesis": "one sentence", "industry": "one of: SaaS, devtools, AI model provider, hardware, fintech, consumer, other", "supporting": [{{"evidence_id": "E1", "claim": "what this item shows"}}], "links": [{{"from": "E1", "to": "E2"}}], "counter_queries": ["...", "..."]}}
+{{"hypothesis": "one sentence", "industry": "one of: SaaS, devtools, AI model provider, hardware, fintech, consumer, other", "supporting": [{{"evidence_id": "E1", "claim": "what this item shows"}}], "links": [{{"from": "E1", "to": "E2"}}], "counter_queries": {{"cuts": "...", "statements": "...", "alternative": "...", "absence": "..."}}}}
 "links" = up to 5 pairs of the supporting items that reinforce each other (same story, from different angles). Use only IDs you listed under supporting. May be empty."""
     h = _chat_json(SYSTEM_PROMPT, p1, 4000, meta, {"hypothesis": str, "supporting": list}, "hypothesis step")
     hypothesis = str(h.get("hypothesis", "")).strip()
@@ -577,20 +649,31 @@ JSON schema:
         raise PulseGridError("Model returned no hypothesis.")
     supporting = _resolve(h.get("supporting"), pool, "supporting")
     links = _resolve_links(h.get("links"), supporting)
-    queries = [str(q).strip() for q in (h.get("counter_queries") or []) if str(q).strip()][:2]
-    if not queries:
-        queries = [f"{company_name} evidence against: {hypothesis}"[:300]]
-    queries = [q if company_name.lower() in q.lower() else f"{company_name} {q}" for q in queries]
+    runs = counter_queries(company_name, hypothesis, h.get("counter_queries"))
+    queries = [r["query"] for r in runs]
     progress(2)
 
-    # Step 2: adversarial Tavily search (parallel)
+    # Step 2: adversarial Tavily search, one per challenge type (parallel). A failed search is
+    # logged as "not checked" instead of failing the whole investigation.
+    def _search(q: str):
+        try:
+            return tavily_search(q, max_results=4), None
+        except PulseGridError as e:
+            return None, str(e)
+
     adv_pool: Dict[str, Dict[str, Any]] = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(queries)) as ex:
-        responses = list(ex.map(lambda q: tavily_search(q, max_results=4), queries))
-    meta["tavily_adversarial_ok"] = len(responses)
+        responses = list(ex.map(_search, queries))
+    meta["tavily_adversarial_ok"] = sum(1 for resp, err in responses if err is None)
     seen_urls = set()
-    for resp in responses:
+    for run, (resp, err) in zip(runs, responses):
+        run["urls"], run["titles"] = [], {}
+        if err:
+            run["error"] = "search failed: " + redact(err)[:160]
+            continue
         for item in normalize_results(resp, company_name):
+            run["urls"].append(item["url"])
+            run["titles"][item["url"]] = item["title"]
             if item["url"] in seen_urls:
                 continue
             seen_urls.add(item["url"])
@@ -621,6 +704,7 @@ JSON schema:
 
     # Step 4: confidence computed in Python
     confidence = compute_confidence(supporting, contradicting, len(adv_pool), links)
+    counter_log = build_counter_log(runs, contradicting, supporting)   # after scoring: TIMING uses publish-date ages
 
     # Step 5: text only - the model sees the computed score and may not change it
     p5 = f"""Company: {company_name}
@@ -644,7 +728,7 @@ JSON schema:
         "industry": str(h.get("industry", "other")).strip()[:40],
         "executive_summary": str(t.get("executive_summary", "")).strip(),
         "supporting": supporting, "contradicting": contradicting,
-        "adversarial_queries": queries,
+        "adversarial_queries": queries, "counter_log": counter_log,
         "adversarial_results": [{"id": k, "title": v["title"], "url": v["url"], "source_type": v["provenance"]} for k, v in adv_pool.items()],
         "alternative_explanation": alt, "links": links, "confidence": confidence,
         "why_not_higher": str(t.get("why_not_higher", "")).strip(),
@@ -673,6 +757,9 @@ def dossier_to_markdown(d: Dict[str, Any], delta_highlights: List[str]) -> str:
 
 ## Contradicting evidence (adversarial search)
 {ev(d['contradicting'])}
+
+## Counter-search log ({sum(1 for r in d.get('counter_log', []) if r['outcome'] != 'not checked')} of 5 challenge types checked)
+{chr(10).join(f"- **{r['category']}** — {r['outcome']} ({r['results']} {'dated items' if r['key'] == 'timing' else 'results'}){(': `' + r['query'] + '`') if r['query'] else ''}{(' — ' + r['top_url']) if r['top_url'] else ''}" for r in d.get('counter_log', [])) or '- Not recorded'}
 
 ## Confidence: {c['score']}% ({c['label']}) — computed from evidence
 | Factor | Weight | Value | Points |

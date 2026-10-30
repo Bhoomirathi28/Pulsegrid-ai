@@ -34,7 +34,7 @@ Guardrails: output is parsed robustly (code fences and `<think>` blocks stripped
 ## How Tavily is used
 - **Discovery:** 4 parallel `advanced` searches (talent, product/pricing, customer friction, market/news) → up to 20 sources, each classified Primary / Secondary / Community by domain.
 - **Investigation:** the evidence ledger tab lists every retrieved source with its link.
-- **Adversarial search:** Nemotron-written counter-queries are run through Tavily to look for contradicting evidence. If this search returns nothing, the confidence score is capped at 60 because the hypothesis was not meaningfully tested.
+- **Adversarial search:** four Tavily counter-searches, one per challenge type: CUTS (layoffs, shutdowns), STATEMENTS (official denials), ALTERNATIVE (another explanation), ABSENCE (evidence that should exist). Nemotron writes the queries; Python templates fill any it leaves out. TIMING is checked in Python from the supporting evidence's publish dates (no search). The Self-challenge tab shows, per type: intent, exact query, result count, outcome (contradicts / neutral / nothing found) and top URL, plus "N of 5 challenge types checked"; a failed search shows as "not checked". If the counter-searches return nothing, the score is capped at 60 because the hypothesis was not meaningfully tested.
 
 ## Confidence score (computed in Python)
 **Each evidence item** gets a weight = tier × specificity × recency, capped at 0.85:

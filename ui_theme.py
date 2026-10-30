@@ -578,10 +578,36 @@ def selfchallenge_html(d: Dict[str, Any]) -> str:
         f'{"contradicts" if a["url"] in con_urls else "neutral"}</span><span class="qq">{link(a["url"], a["title"] or _domain(a["url"]))}</span></div>'
         for a in adv) or '<div class="empty">The counter-search returned no results, so the hypothesis was not meaningfully tested.</div>'
     alt = f'<div class="why"><div class="k">Alternative explanation</div><p>{esc(d["alternative_explanation"])}</p></div>' if d.get("alternative_explanation") else ""
+    if d.get("counter_log"):
+        return f"""{section_label("Self-challenge · how it tried to prove itself wrong", "पूर्वपक्ष", "Purva Paksha")}
+<div style="margin-top:12px">{head}</div>{counter_log_html(d["counter_log"])}
+<div class="stitle" style="font-size:15px;margin-top:24px">All counter-search results</div>{rrows}{alt}"""
     return f"""{section_label("Self-challenge · how it tried to prove itself wrong", "पूर्वपक्ष", "Purva Paksha")}
 <div style="margin-top:12px">{head}</div><div class="cap" style="margin-top:6px">Per-query outcomes are not tracked; results below are all counter-search results.</div>
 <div class="stitle" style="font-size:15px;margin-top:24px">Queries run</div>{qrows}
 <div class="stitle" style="font-size:15px;margin-top:24px">Counter-search results</div>{rrows}{alt}"""
+
+
+_OUTCOME_COLOR = {"contradicts": "#EE6A5C", "neutral": "#59618F", "nothing found": "#A7ACC8", "not checked": "#333D72"}
+
+
+def counter_log_html(log: List[Dict[str, Any]]) -> str:
+    """Per challenge type: intent, exact query, result count, outcome, top URL; anything not run shows as 'not checked'."""
+    checked = sum(1 for r in log if r["outcome"] != "not checked")
+    rows = []
+    for r in log:
+        color = _OUTCOME_COLOR.get(r["outcome"], "#59618F")
+        query = (f'<div class="mono" style="color:var(--cream)">{esc(r["query"])}</div>' if r["query"]
+                 else '<div class="cap">No search: computed from the supporting evidence’s publish dates</div>')
+        count = f'{r["results"]} dated item{"" if r["results"] == 1 else "s"}' if r["key"] == "timing" else \
+                f'{r["results"]} result{"" if r["results"] == 1 else "s"}'
+        top = f' · top: {link(r["top_url"], r.get("top_title") or _domain(r["top_url"]))}' if r.get("top_url") else ""
+        note = f'<div class="cap">{esc(r["note"])}</div>' if r.get("note") else ""
+        rows.append(f'<div class="qrow"><span class="qt"><i class="outc" style="background:{color}"></i>{esc(r["category"])}</span>'
+                    f'<span class="qq" style="font-family:Mukta,sans-serif"><div class="cap">{esc(r["intent"])}</div>{query}'
+                    f'<div class="cap" style="margin-top:4px"><b style="color:{color}">{esc(r["outcome"])}</b> · {esc(count)}{top}</div>{note}</span></div>')
+    return (f'<div class="stitle" style="font-size:15px;margin-top:24px">{checked} of {len(log)} challenge types checked</div>'
+            + "".join(rows))
 
 
 def watch_next_html(d: Dict[str, Any]) -> str:

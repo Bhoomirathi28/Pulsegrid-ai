@@ -263,3 +263,22 @@ assert alerts.formula_changed(old_prev) and not alerts.formula_changed({"confide
 assert alerts.evaluate("A", "a", an(90, "High"), nodiff, old_prev) is None
 assert alerts.evaluate("A", "a", an(90, "High"), nodiff, {"confidence": 40, "formula_version": ai.FORMULA_VERSION}) is not None
 print("alert checks passed")
+
+# ---- counter-search log: 4 searched challenge types + TIMING from publish dates
+qs = ai.counter_queries("Acme", "Acme is moving upmarket to enterprise", {"cuts": "layoffs 2026", "absence": "Acme enterprise customers"})
+assert [q["category"] for q in qs] == ["CUTS", "STATEMENTS", "ALTERNATIVE", "ABSENCE"]
+assert qs[0]["query"] == "Acme layoffs 2026" and qs[3]["query"] == "Acme enterprise customers"   # company name added only when missing
+assert all(q["query"] and "Acme" in q["query"] for q in qs)                                       # missing ones use Python templates
+assert [q["query"] for q in ai.counter_queries("Acme", "h", ["a", "b"])][:2] == ["Acme a", "Acme b"]  # old list shape still works
+runs = [dict(qs[0], urls=["https://x.com/1", "https://x.com/2"], titles={"https://x.com/2": "Acme cuts 10%"}),
+        dict(qs[1], urls=["https://y.com/1"], titles={}), dict(qs[2], urls=[], titles={}),
+        dict(qs[3], urls=[], titles={}, error="search failed: timeout")]
+sup_t = [{"id": "E1", "url": "https://acme.com/a", "title": "t", "age_days": 200.0}, {"id": "E2", "url": "https://acme.com/b", "title": "t", "age_days": None}]
+log = ai.build_counter_log(runs, [{"url": "https://x.com/2"}], sup_t)
+assert [(r["category"], r["outcome"], r["results"]) for r in log] == [
+    ("CUTS", "contradicts", 2), ("STATEMENTS", "neutral", 1), ("ALTERNATIVE", "nothing found", 0),
+    ("ABSENCE", "not checked", 0), ("TIMING", "contradicts", 1)]
+assert log[0]["top_url"] == "https://x.com/2" and log[0]["top_title"] == "Acme cuts 10%" and log[1]["top_url"] == "https://y.com/1"
+assert ai.timing_check([{"url": "u", "age_days": 3.0}])["outcome"] == "neutral"
+assert ai.timing_check([{"url": "u", "age_days": None}])["outcome"] == "not checked"
+print("counter-search log checks passed")
