@@ -12,7 +12,7 @@ PulseGrid AI investigates a company from the live web, forms one hypothesis abou
 ## Links
 
 - **Live demo:** https://pulsegrid-ai19.streamlit.app
-- **Demo video:** <YOUTUBE_LINK>
+- **Demo video:** https://youtu.be/JKpZhD73PcY
 - **Note:** the free Streamlit app may be asleep. Click **"Yes, get this app back up"** and wait about 30 seconds.
 - **License:** [MIT](LICENSE) (OSI-approved)
 
@@ -86,7 +86,7 @@ flowchart TD
 Requires Python 3.11+, a [Tavily](https://tavily.com) key and a [Nebius Token Factory](https://tokenfactory.nebius.com) key. Supabase is optional.
 
 ```bash
-git clone https://github.com/<your-username>/Pulsegrid-ai.git
+git clone https://github.com/Bhoomirathi28/Pulsegrid-ai.git
 cd Pulsegrid-ai
 pip install -r requirements.txt
 cp .env.example .env        # Windows: copy .env.example .env
@@ -170,7 +170,8 @@ Stage and heading names come from **Nyaya**, classical Indian logic, which requi
 
 ## Team
 
-<TEAM_MEMBERS>
+- Bhoomi Rathi ([@Bhoomirathi28](https://github.com/Bhoomirathi28))
+- Shiva Nema ([@Shivanema25](https://github.com/Shivanema25))
 
 ## License
 
