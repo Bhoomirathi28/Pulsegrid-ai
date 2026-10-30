@@ -23,6 +23,50 @@ assert ai.compute_confidence(sup(6), [], 0)["score"] <= 60          # untested h
 assert abs(sum(f[2] for f in ai.CONFIDENCE_FACTORS) - 1.0) < 1e-9
 assert ai.compute_confidence(sup(6), [], 4)["score"] <= 95
 
+# ---- evidence weighting (tier x specificity x recency, cap 0.85, clusters, 3 per domain, noisy-OR)
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+_ago = lambda n: (_dt.now(_tz.utc) - _td(days=n)).isoformat()
+assert ai.source_tier("https://careers.acme.com/jobs/1", "Primary") == "A" and ai.is_job_page("https://careers.acme.com/jobs/1")
+assert ai.source_tier("https://boards.greenhouse.io/acme/jobs/1", "Secondary") == "A"
+assert ai.source_tier("https://www.reuters.com/x", "Secondary") == "B"
+assert ai.source_tier("https://someone.medium.com/x", "Community") == "C"
+assert ai.source_tier("https://www.reddit.com/r/x", "Community") == "D"
+assert ai.specificity_kinds("Acme raises $40M Series B on March 3") and not ai.specificity_kinds("Acme is hiring engineers")
+w = ai.evidence_weight({"url": "https://acme.com/pricing", "source_type": "Primary", "title": "Pricing v2.1", "published_date": _ago(0)})
+assert w["tier"] == "A" and w["specific"] and w["weight"] == 0.85                          # 1.0 capped at 0.85
+w45 = ai.evidence_weight({"url": "https://reuters.com/a", "source_type": "Secondary", "title": "Acme cuts 10% of staff", "published_date": _ago(45)})
+assert abs(w45["weight"] - 0.35) < 0.01, w45                                               # 0.7 x 1.0 x 0.5
+jobs = [{"id": f"E{i}", "url": f"https://careers.acme.com/jobs/{i}", "source_type": "Primary", "title": "Staff Engineer, $200,000",
+         "stream": "Talent & Hiring Signals", "published_date": _ago(5)} for i in range(10)]
+assert not ai.evidence_weight(jobs[0])["specific"]                                           # job pages are vague by default
+specific2 = [{"id": "S1", "url": "https://docs.acme.com/changelog", "source_type": "Primary", "title": "Changelog: API v3.2 released March 4",
+              "stream": "Product & Pricing Drift", "published_date": _ago(12)},
+             {"id": "S2", "url": "https://acme.com/press/launch", "source_type": "Primary", "title": "Acme launches Atlas 2 for $49/month",
+              "stream": "Market & News Signals", "published_date": _ago(12)}]
+vague_c = ai.compute_confidence(jobs, [], 4)
+spec_c = ai.compute_confidence(specific2, [], 4)
+assert sum(e["counted"] for e in jobs) == 1                                                  # one careers site = one hiring signal
+print(f"sanity: 10 vague job titles (one careers page) = {vague_c['score']}  vs  2 specific Tier-A = {spec_c['score']}")
+assert vague_c["score"] < spec_c["score"], (vague_c["score"], spec_c["score"])
+# max 3 items per domain
+news = [{"id": f"N{i}", "url": f"https://reuters.com/{i}", "source_type": "Secondary", "title": f"Acme story {i}: 500 customers",
+         "stream": "Market & News Signals"} for i in range(5)]
+r = ai.count_evidence(news)
+assert r["counted"] == 3 and r["domain_capped"] == 2 and "per-domain" in news[4]["not_counted_reason"]
+# model links merge two items into one event; noisy-OR = 1 - prod(1 - w)
+two = [dict(news[0], id="L1", url="https://a.com/1"), dict(news[1], id="L2", url="https://b.com/2")]
+r1 = ai.count_evidence([dict(x) for x in two]); r2 = ai.count_evidence(two, [{"from_url": "https://a.com/1", "to_url": "https://b.com/2"}])
+assert r1["counted"] == 2 and r2["counted"] == 1 and r2["strength"] < r1["strength"]
+assert abs(r1["strength"] - (1 - (1 - two[0]["weight"]) * (1 - two[1]["weight"]))) < 1e-9
+# a model link between unrelated stories is rejected by the Python check
+unrel = [{"id": "U1", "url": "https://a.com/1", "source_type": "Secondary", "title": "Acme opens Tokyo office"},
+         {"id": "U2", "url": "https://b.com/2", "source_type": "Secondary", "title": "Acme pricing page changes tiers"}]
+assert ai.count_evidence(unrel, [{"from_url": "https://a.com/1", "to_url": "https://b.com/2"}])["counted"] == 2
+far = [dict(two[0], published_date=_ago(1)), dict(two[1], published_date=_ago(60))]
+assert ai.count_evidence(far, [{"from_url": "https://a.com/1", "to_url": "https://b.com/2"}])["counted"] == 2  # 59 days apart
+assert ai.compute_confidence(sup(3), [], 4)["formula_version"] == ai.FORMULA_VERSION
+print("evidence weighting checks passed")
+
 # URL resolution: invented IDs are dropped, URLs come only from the pool
 pool = {"E1": {"title": "t", "url": "https://a.com/x", "provenance": "Primary", "stream": "S"}}
 out = ai._resolve([{"evidence_id": "E1", "claim": "c"}, {"evidence_id": "E99", "claim": "fake"}], pool, "supporting")
@@ -193,4 +237,9 @@ assert alerts.send_if_new(al2) == ["fake"]
 alerts.watch("a", "A"); alerts.watch("a", "A")
 assert len(alerts.list_watched()) == 1 and alerts.is_watched("a")
 alerts.unwatch("a"); assert not alerts.is_watched("a")
+# formula version: a score from an older formula is not compared (no confidence-move alert)
+old_prev = {"confidence": 40, "formula_version": ai.FORMULA_VERSION - 1}
+assert alerts.formula_changed(old_prev) and not alerts.formula_changed({"confidence": 40, "formula_version": ai.FORMULA_VERSION})
+assert alerts.evaluate("A", "a", an(90, "High"), nodiff, old_prev) is None
+assert alerts.evaluate("A", "a", an(90, "High"), nodiff, {"confidence": 40, "formula_version": ai.FORMULA_VERSION}) is not None
 print("alert checks passed")

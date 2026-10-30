@@ -83,7 +83,10 @@ def _group_key(pattern: Any, industry: str) -> str:
 def latest_confidence(company_slug: str) -> Optional[Dict[str, Any]]:
     """Confidence of the most recent saved prediction for a company (read BEFORE saving the new one)."""
     rows = list_predictions(company_slug)
-    return {"confidence": rows[0]["confidence"]} if rows and rows[0].get("confidence") is not None else None
+    if not rows or rows[0].get("confidence") is None:
+        return None
+    factors = rows[0].get("factors") if isinstance(rows[0].get("factors"), dict) else {}
+    return {"confidence": rows[0]["confidence"], "formula_version": factors.get("formula_version", 1)}
 
 
 def pattern_stats(rows: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
@@ -143,7 +146,8 @@ def save_prediction(company_name: str, company_slug: str, analysis: Dict[str, An
         "pattern_signature": analysis.get("pattern_signature", []),
         "confidence": conf["score"],
         "factors": {"breakdown": conf["breakdown"], "caps": conf["caps"],
-                    "base_score": conf.get("base_score"), "history": conf.get("history")},
+                    "base_score": conf.get("base_score"), "history": conf.get("history"),
+                    "formula_version": conf.get("formula_version", 1)},
         "status": "pending", "resolved_at": None, "resolution_url": None, "resolution_note": None,
     })
 

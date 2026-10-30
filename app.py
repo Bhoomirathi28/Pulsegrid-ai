@@ -97,6 +97,8 @@ if launch_btn and company_input.strip():
                         st.session_state.alert_msg = ("Alert sent via " + ", ".join(sent)) if sent else "Alert already sent earlier (not repeated)."
                     else:
                         st.session_state.alert_msg = "On watchlist: no alert triggered by this rescan."
+                    if alerts.formula_changed(prev):
+                        st.session_state.alert_msg += " Scoring formula changed since the last scan, so the confidence-change check was skipped this time."
             except Exception as e:
                 st.session_state.alert_msg = f"Alert failed: {redact(e)}"
     except PulseGridError as e:

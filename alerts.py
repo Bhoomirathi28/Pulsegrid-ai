@@ -24,6 +24,7 @@ from config import (SLACK_WEBHOOK_URL, APP_URL, SMTP_HOST, SMTP_PORT, SMTP_USER,
                     SMTP_PASSWORD, ALERT_EMAIL_TO, redact, is_placeholder)
 from store import Table
 from search_engine import PulseGridError, is_valid_url
+from ai_engine import FORMULA_VERSION
 
 CONF_MOVE = 10.0
 NEW_SIGNAL_MIN_WEIGHT = 0.7
@@ -162,6 +163,12 @@ def top_evidence(analysis: Dict[str, Any], n: int = 3) -> List[Dict[str, Any]]:
     return [{"claim": e.get("claim", ""), "title": e.get("title", ""), "url": e["url"], "source_type": e.get("source_type", "")} for e in ranked[:n]]
 
 
+def formula_changed(prev: Optional[Dict[str, Any]]) -> bool:
+    """True when the previous score was made by an older scoring formula (not comparable)."""
+    return bool(prev and prev.get("confidence") is not None
+                and int(prev.get("formula_version", FORMULA_VERSION)) < FORMULA_VERSION)
+
+
 def evaluate(company_name: str, slug: str, analysis: Dict[str, Any], diff: Dict[str, Any],
              prev: Optional[Dict[str, Any]], prefs: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
     """Returns an alert dict if any trigger fires, else None. `prev` = {'confidence': float} from the previous scan."""
@@ -172,7 +179,7 @@ def evaluate(company_name: str, slug: str, analysis: Dict[str, Any], diff: Dict[
     new_band = analysis["confidence"]["label"]
     reasons, keys, conf = [], [], None
 
-    if prev and prev.get("confidence") is not None:
+    if prev and prev.get("confidence") is not None and not formula_changed(prev):
         old = float(prev["confidence"])
         crossed = band(old) != band(new_score)
         if abs(new_score - old) >= move or crossed:

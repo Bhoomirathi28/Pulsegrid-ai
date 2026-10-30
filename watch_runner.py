@@ -27,8 +27,9 @@ def scan_one(row) -> str:
     tr.apply_history(analysis, confidence_label)
     alert = alerts.evaluate(name, slug, analysis, sd["diff"], prev, prefs=row)
     tr.save_prediction(name, slug, analysis)
+    note = " (scoring formula changed since last scan; confidence-change check skipped)" if alerts.formula_changed(prev) else ""
     if not alert:
-        return f"{name}: scanned, nothing to alert ({analysis['confidence']['score']}%)"
+        return f"{name}: scanned, nothing to alert ({analysis['confidence']['score']}%){note}"
     sent = alerts.send_if_new(alert)
     return f"{name}: alert {'sent via ' + ', '.join(sent) if sent else 'already sent earlier (skipped)'}"
 

@@ -395,11 +395,37 @@ def tag_html(source_type: str) -> str:
     return f'<span class="tag" title="{esc(tip)}">{text}</span>'
 
 
+_TIER_TIP = {"A": "Tier A · official source (×1.0)", "B": "Tier B · news (×0.7)",
+             "C": "Tier C · blog (×0.45)", "D": "Tier D · forum (×0.25)"}
+
+
+def weight_line(e: Dict[str, Any]) -> str:
+    """'Tier A · specific · 12d ago · w 0.82 · domain.com' (weights computed in ai_engine.count_evidence)."""
+    if "weight" not in e:
+        date = f'<span>{esc(str(e["published_date"])[:10])}</span>' if e.get("published_date") else ""
+        return f'{link(e["url"], _domain(e["url"]))}{date}'
+    if e.get("job_page"):
+        spec_tip = "Job listing: vague by default"
+    elif e.get("specific"):
+        spec_tip = "Source text names: " + ", ".join(e.get("specific_kinds", []))
+    else:
+        spec_tip = "No money, numbers, dates or product/version names in the source text (×0.5)"
+    age = "undated" if e.get("age_days") is None else f'{int(e["age_days"])}d ago'
+    age_tip = "No publish date: counted as 45 days old" if e.get("age_days") is None else "Recency halves every 45 days"
+    parts = (f'<span title="{esc(_TIER_TIP.get(e["tier"], ""))}">Tier {esc(e["tier"])}</span>·'
+             f'<span title="{esc(spec_tip)}">{"specific" if e.get("specific") else "vague"}</span>·'
+             f'<span title="{esc(age_tip)}">{esc(age)}</span>·'
+             f'<span title="tier × specificity × recency, max 0.85">w {e["weight"]:.2f}</span>·'
+             f'{link(e["url"], _domain(e["url"]))}')
+    if not e.get("counted", True):
+        parts += f'<span style="color:var(--turm2)">not counted: {esc(e.get("not_counted_reason", ""))}</span>'
+    return parts
+
+
 def evidence_card(e: Dict[str, Any], kind: str) -> str:
     badge = "+" if kind == "sup" else "−"
-    date = f'<span>{esc(str(e["published_date"])[:10])}</span>' if e.get("published_date") else ""
     return f"""<div class="ev {kind}"><div class="bd">{badge}</div><div><div class="cl">{esc(e['claim'] or e['title'])}</div>
-<div class="mt">{tag_html(e['source_type'])}{link(e['url'], _domain(e['url']))}{date}</div></div></div>"""
+<div class="mt">{tag_html(e['source_type'])}{weight_line(e)}</div></div></div>"""
 
 
 def calc_html(d: Dict[str, Any]) -> str:
