@@ -439,7 +439,8 @@ SCREENS = {"investigate": screen_investigate, "thinking": screen_thinking, "resu
 
 # ---------------------------------------------------------------- dispatch
 screen = st.session_state.screen
-if screen == "splash":
+if screen == "splash":  # first load of a session only; the overlay fades itself out after 2s
+    ui.render(ui.splash_html())
     screen = st.session_state.screen = "investigate"
 if screen in ("results", "actions") and not has_results():
     screen = st.session_state.screen = "investigate"

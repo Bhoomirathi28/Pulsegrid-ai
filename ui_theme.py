@@ -209,6 +209,22 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .st-key-see_results button{min-height:60px !important;font-size:17px !important;}
 @media (max-width:640px){.srow .sn .sk{display:block;margin-left:0;}}
 
+/* splash */
+.splash{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 16px;
+  background:radial-gradient(rgba(243,235,221,0.06) 1.2px, transparent 1.4px) #1B2246;background-size:28px 28px;
+  animation:spOut .45s ease 2s forwards;}
+@keyframes spOut{to{opacity:0;visibility:hidden;}}
+.spd{opacity:0;animation:spIn .3s ease forwards;}
+@keyframes spIn{to{opacity:1;}}
+.sp-draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw .7s ease forwards;}
+.sp-t{font:700 clamp(40px,9vw,56px)/1 'Rajdhani',sans-serif;color:var(--cream);margin-top:22px;}
+.sp-s{font-size:16px;color:var(--text2);margin-top:10px;}
+.sp-bar{width:220px;max-width:70vw;height:3px;border-radius:2px;background:var(--line);overflow:hidden;margin:28px auto 14px;}
+.sp-bar i{display:block;height:100%;width:0;background:var(--turm);animation:spFill 2s linear forwards;}
+@keyframes spFill{to{width:100%;}}
+.sp-m{font:400 11px 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--muted);}
+@media (prefers-reduced-motion:reduce){.splash{display:none !important;}}
+
 /* investigate */
 .st-key-inv_col{max-width:860px;margin:24px auto 0;}
 .istatus{font:400 13px 'JetBrains Mono',monospace;color:var(--green-t);} .istatus.bad{color:var(--red-t);}
@@ -246,8 +262,8 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .scale5{position:relative;margin-top:16px;} .scale5 .segs{display:flex;gap:3px;}
 .scale5 .segs i{display:block;height:4px;border-radius:2px;background:var(--line2);} .scale5 .segs i.on{background:rgba(233,169,59,.45);}
 .scale5 .mk{position:absolute;top:-6px;width:3px;height:16px;border-radius:2px;background:var(--turm);}
-.names5{display:flex;gap:3px;margin-top:8px;font:600 11px 'Rajdhani',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
-.names5 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .names5 .on{color:var(--turm);}
+.names5{display:flex;gap:3px;margin-top:8px;font:600 12px 'Rajdhani',sans-serif;letter-spacing:.02em;color:var(--muted);}
+.names5 span{white-space:nowrap;} .names5 .on{color:var(--turm);}
 .bandline{font:600 17px 'Rajdhani',sans-serif;letter-spacing:.04em;color:var(--turm);margin-top:14px;}
 .cols2{display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start;} .cols2 > .col{flex:1 1 340px;min-width:0;}
 .erows{margin-top:10px;border-top:1px solid var(--line);}
@@ -271,7 +287,7 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .qhead .qc{font:400 12px 'JetBrains Mono',monospace;color:var(--muted);}
 .log{background:var(--inset);border:1px solid var(--line);border-radius:8px;padding:14px 16px;font:400 12px/1.7 'JetBrains Mono',monospace;color:var(--text2);max-height:300px;overflow-y:auto;}
 .ll{display:flex;gap:10px;} .ll .lt{color:var(--muted);flex:0 0 auto;} .ll .lk{flex:0 0 72px;} .ll .lx{min-width:0;word-break:break-word;}
-@media (max-width:640px){.bignum{font-size:68px;} .names5{font-size:9px;letter-spacing:0;} .hero5,.cols2{gap:32px;}}
+@media (max-width:640px){.bignum{font-size:68px;} .names5{font-size:10px;letter-spacing:0;} .hero5,.cols2{gap:32px;}}
 
 @media (max-width:640px){.panel{padding:20px;} .big{font-size:64px;}}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;} .draw{stroke-dashoffset:0;}}
@@ -345,6 +361,21 @@ def tracker_html(current: int) -> str:
 
 def hair_html() -> str:
     return '<div class="hair"></div>'
+
+
+# ------------------------------------------------------------------ screen 1: splash
+def splash_html() -> str:
+    """CSS-only overlay: the logo draws itself, the bar fills over 2s, then it fades out (no blocking sleep)."""
+    pts = [(26, 26), (66, 26), (106, 26), (106, 66), (106, 106), (66, 106), (26, 106), (26, 66)]
+    dots = "".join(f'<circle class="spd" style="animation-delay:{0.08 + i * 0.09:.2f}s" cx="{x}" cy="{y}" r="4.2" fill="#F3EBDD"/>'
+                   for i, (x, y) in enumerate(pts))
+    return f"""<div class="splash" aria-hidden="true"><div class="sp-in">
+<svg width="132" height="132" viewBox="0 0 132 132">{dots}
+<polygon class="sp-draw" style="animation-delay:.8s" pathLength="1" points="66,8 124,66 66,124 8,66" fill="none" stroke="#E9A93B" stroke-width="2.2"/>
+<path class="sp-draw" style="animation-delay:1.05s" pathLength="1" d="M66,44 C88,44 88,44 88,66 C88,88 88,88 66,88 C44,88 44,88 44,66 C44,44 44,44 66,44 Z" fill="none" stroke="#F3EBDD" stroke-width="1.8"/>
+<circle class="spd" style="animation-delay:1.3s" cx="66" cy="66" r="6" fill="#E9A93B"/></svg>
+<div class="sp-t">PulseGrid AI</div><div class="sp-s">Competitive intelligence that argues with itself</div>
+<div class="sp-bar"><i></i></div><div class="sp-m">TAVILY LIVE WEB · NVIDIA NEMOTRON ON NEBIUS</div></div></div>"""
 
 
 # ------------------------------------------------------------------ screen 2: investigate
@@ -722,8 +753,7 @@ def actions_head_html(d: Dict[str, Any]) -> str:
     score = d["confidence"]["score"]
     return f"""<div class="lab turm">Recommended actions</div>
 <div class="h1t">What a competitor of {esc(d.get("company"))} could do next</div>
-<div class="p2" style="color:var(--muted)">Suggestions based on the evidence for a hypothesis at {score:g}% ({esc(band5(score)[0])}).
-Each one shows which signals it responds to. Not certainties.</div>"""
+<div class="p2" style="color:var(--muted)">Suggestions based on the evidence for a hypothesis at {score:g}% ({esc(band5(score)[0])}). Each one shows which signals it responds to. Not certainties.</div>"""
 
 
 def rec_cards_html(d: Dict[str, Any]) -> str:
