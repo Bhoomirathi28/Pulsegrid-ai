@@ -33,7 +33,7 @@ NAV = [("investigate", "Investigate"), ("watchlist", "Watchlist"), ("track_recor
 
 for key, default in (("screen", "splash"), ("search_data", None), ("dossier_content", None), ("active_company", ""),
                      ("run_error", None), ("run_count", 0), ("suggestions", []), ("saved_prediction", None),
-                     ("track_error", None), ("alert_msg", None), ("pending_company", None), ("form_error", None)):
+                     ("track_error", None), ("alert_msg", None), ("pending_company", None), ("form_error", None), ("scan_n", None)):
     if key not in st.session_state:
         st.session_state[key] = default
 
@@ -84,6 +84,7 @@ def execute(target_company: str, live_ph) -> None:
     st.session_state.search_data = None
     st.session_state.dossier_content = None
     st.session_state.run_error = None
+    st.session_state.scan_n = None
 
     ui.render(ui.live_html(None, 0), live_ph)
     try:
@@ -110,6 +111,7 @@ def execute(target_company: str, live_ph) -> None:
                 prev = tr.latest_confidence(slug)   # read BEFORE saving the new prediction
                 tr.apply_history(analysis, confidence_label)
                 st.session_state.saved_prediction = tr.save_prediction(target_company, slug, analysis)
+                st.session_state.scan_n = len(tr.list_predictions(slug))
             except Exception as e:
                 prev = None
                 st.session_state.track_error = f"Could not save prediction: {redact(e)}"
@@ -164,44 +166,29 @@ def screen_thinking() -> None:
 def screen_results() -> None:
     d = st.session_state.dossier_content
     sd = st.session_state.search_data
-    ui.render(ui.status_html(sd["diff"], d.get("simulated", False), d["meta"]["model"], sd["storage_backend"]))
+    ui.render(ui.results_status_html(d, sd, st.session_state.scan_n))
     for w in sd.get("storage_warnings", []):
         st.warning(w)
-    ui.render(ui.summary_html(d))
-    ui.render(ui.spacer(32))
-
-    t_ev, t_self, t_score, t_chg, t_src = st.tabs(["Evidence", "Self-challenge", "Score", "Changes", "Sources"])
-    with t_ev:
-        ui.render(ui.pulse_grid_html(d, sd["raw_streams"]))
-        ui.render(ui.evidence_tab_html(d))
-    with t_self:
-        ui.render(ui.selfchallenge_html(d))
+    ui.render(ui.hero_html(d))
+    ui.render(ui.spacer(28))
+    ui.render(ui.evidence_columns_html(d))
+    ui.render(ui.spacer(12))
+    ui.render(ui.why_html(d))
+    ui.render(ui.spacer(20))
+    t_score, t_self, t_chg, t_src, t_how = st.tabs(["Score breakdown", "Self-challenge log", "What changed", "All sources", "How it ran"])
     with t_score:
-        ui.render(ui.calc_html(d))
+        ui.render(ui.score_tab_html(d))
+    with t_self:
+        ui.render(ui.selfchallenge_log_html(d))
     with t_chg:
-        diff = sd["diff"]
-        if diff["first_scan"]:
-            ui.render(ui.section_label("What changed") +
-                      '<div class="p2" style="margin-top:12px">First scan — baseline saved. Rescan later to see what changed. No changes are claimed.</div>')
-        else:
-            new = diff["new_signals"]
-            body = "".join(
-                f'<div class="qrow"><span class="qt">{ui.esc(n["category"])}</span><span class="qq">'
-                f'{ui.link(n["url"], n["title"])}</span></div>' for n in new) or \
-                '<div class="empty">No new sources since the previous scan.</div>'
-            ui.render(ui.section_label("What changed") +
-                      f'<div class="cap" style="margin-top:8px">Matched by source URL: {len(new)} new source(s); {diff["gone_count"]} previously seen source(s) did not appear.</div>{body}')
+        ui.render(ui.changes_html(sd))
     with t_src:
-        for s in sd["raw_streams"]:
-            ui.render(ui.section_label(f'{s.get("category", "")} · {len(s.get("results", []))}', small=True))
-            for it in s.get("results", []):
-                ui.render(f'<div class="ev sup" style="background:var(--inner);border-color:var(--line)"><div><div class="cl">{ui.esc(it.get("title"))}</div>'
-                          f'<div class="cap">{ui.esc((it.get("snippet") or "")[:300])}</div>'
-                          f'<div class="mt">{ui.tag_html(it.get("provenance"))}{ui.link(it.get("url", ""), it.get("url", ""))}</div></div></div>')
-    with st.expander("Under the hood"):
-        ui.render(ui.under_hood_html(d, sd))
-    ui.render(ui.spacer(24))
-    with st.container(horizontal=True, horizontal_alignment="distribute"):
+        ui.render(ui.sources_html(sd))
+    with t_how:
+        run = st.session_state.get("run") or {}
+        ui.render(ui.how_it_ran_html(d, sd, run.get("events")))
+    ui.render(ui.spacer(20))
+    with st.container(horizontal=True, horizontal_alignment="distribute", vertical_alignment="center"):
         st.button("← Back to the pattern", type="tertiary", on_click=go, args=("thinking",))
         st.button("See recommended actions →", type="primary", on_click=go, args=("actions",))
 

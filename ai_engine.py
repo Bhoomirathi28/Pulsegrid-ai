@@ -278,7 +278,7 @@ def _simulated_analysis(company_name: str, raw_streams: List[Dict[str, Any]]) ->
         "company": company_name, "simulated": True, "industry": "other",
         "hypothesis": f"[SIMULATED] Evidence is consistent with {company_name} shifting toward enterprise customers.",
         "executive_summary": "[SIMULATED] No model was called.",
-        "supporting": sup, "contradicting": con, "adversarial_queries": [], "adversarial_results": [], "links": [],
+        "supporting": sup, "contradicting": con, "adversarial_queries": [], "adversarial_results": [], "adversarial_log": [], "links": [],
         "confidence": conf, "why_not_higher": "[SIMULATED] No model was called.",
         "recommendations": ["[SIMULATED]"], "meta": {"model": "none (simulation)", "nebius_calls_ok": 0, "tavily_adversarial_ok": 0},
     }
@@ -340,14 +340,18 @@ JSON schema:
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(queries)) as ex:
         responses = list(ex.map(lambda q: tavily_search(q, max_results=4), queries))
     meta["tavily_adversarial_ok"] = len(responses)
-    seen_urls = set()
-    for resp in responses:
+    url_to_id: Dict[str, str] = {}
+    adv_log: List[Dict[str, Any]] = []  # per query: which results it returned (for the self-challenge log)
+    for q, resp in zip(queries, responses):
+        ids: List[str] = []
         for item in normalize_results(resp, company_name):
-            if item["url"] in seen_urls:
-                continue
-            seen_urls.add(item["url"])
-            aid = f"A{len(adv_pool) + 1}"
-            adv_pool[aid] = {**item, "id": aid, "stream": "Adversarial search"}
+            if item["url"] not in url_to_id:
+                aid = f"A{len(adv_pool) + 1}"
+                url_to_id[item["url"]] = aid
+                adv_pool[aid] = {**item, "id": aid, "stream": "Adversarial search"}
+            if url_to_id[item["url"]] not in ids:
+                ids.append(url_to_id[item["url"]])
+        adv_log.append({"query": q, "results": len(ids), "ids": ids})
 
     # Step 3: classify adversarial results
     contradicting: List[Dict[str, Any]] = []
@@ -398,6 +402,7 @@ JSON schema:
         "supporting": supporting, "contradicting": contradicting,
         "adversarial_queries": queries,
         "adversarial_results": [{"id": k, "title": v["title"], "url": v["url"], "source_type": v["provenance"]} for k, v in adv_pool.items()],
+        "adversarial_log": adv_log,
         "alternative_explanation": alt, "links": links, "confidence": confidence,
         "why_not_higher": str(t.get("why_not_higher", "")).strip(),
         "recommendations": [str(r) for r in (t.get("recommendations") or [])][:5],
