@@ -130,7 +130,7 @@ def apply_history(analysis: Dict[str, Any], label_fn) -> None:
     h = history_adjustment(pattern, industry, conf["score"])
     conf["base_score"] = conf["score"]
     if h["adjustment"]:
-        conf["score"] = round(max(0.0, min(95.0, conf["score"] + h["adjustment"])), 1)
+        conf["score"] = round(max(0.0, min(float(conf.get("max_score", 95.0)), conf["score"] + h["adjustment"])), 1)
         conf["label"] = label_fn(conf["score"])
     conf["history"] = h
     analysis["pattern_signature"] = pattern

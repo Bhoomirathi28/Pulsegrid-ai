@@ -443,7 +443,23 @@ def calc_html(d: Dict[str, Any]) -> str:
         base = f' · evidence score {c["base_score"]:g}%' if h.get("adjustment") else ""
         caps += f'<div class="cap" style="margin-top:14px">Track record · {esc(h["message"])}{esc(base)}</div>'
     return f"""<div class="panel">{section_label("Verdict · how the score was calculated", "निर्णय", "Nirnaya")}{''.join(rows)}{caps}
+{what_if_html(c)}
 <div class="why"><div class="k">Why not higher?</div><p>{esc(d['why_not_higher'])}</p></div></div>"""
+
+
+def what_if_html(c: Dict[str, Any]) -> str:
+    """'What would raise / lower this' - each delta is the formula re-run on changed evidence (ai_engine.what_would_change)."""
+    w = c.get("what_if")
+    if not w:
+        return ""
+
+    def rows(items, color):
+        return "".join(f'<div class="qrow"><span class="qt" style="color:{color}">{x["delta"]:+.1f}</span>'
+                       f'<span class="qq">{esc(x["text"])} <span class="cap">→ {x["new_score"]:g}% {esc(x["new_band"])}</span></span></div>'
+                       for x in items) or '<div class="empty">Nothing found.</div>'
+    return (f'<div style="margin-top:24px">{section_label("What would raise this", small=True)}{rows(w["raise"], "var(--green-t)")}</div>'
+            f'<div style="margin-top:20px">{section_label("What would lower this", small=True)}{rows(w["lower"], "var(--red-t)")}</div>'
+            '<div class="cap" style="margin-top:6px">Each change is computed by re-running the same formula, before any track-record adjustment.</div>')
 
 
 # ------------------------------------------------------------------ smriti / track record
@@ -494,7 +510,8 @@ def smriti_html(rows: List[Dict[str, Any]], stats: List[Dict[str, Any]], backend
 
 
 # ------------------------------------------------------------------ results layout (summary / tabs / actions)
-BANDS = [("Low", 0, 50, "#5A2A33"), ("Moderate", 50, 75, "#6B5320"), ("High", 75, 100, "#1E5A3C")]
+BANDS = [("Unsupported", 0, 25, "#5A2A33"), ("Speculative", 25, 45, "#6B3A28"), ("Plausible", 45, 65, "#6B5320"),
+         ("Likely", 65, 85, "#3E5A2A"), ("Confirmed", 85, 100, "#1E5A3C")]
 
 
 def spacer(px: int = 32) -> str:
@@ -507,11 +524,10 @@ def label(text: str, sanskrit: str = "") -> str:
 
 
 def _next_band_line(score: float, name: str) -> str:
-    if name == "Low":
-        return f"Low — {50 - score:.1f} points from Moderate"
-    if name == "Moderate":
-        return f"Moderate — {75 - score:.1f} points from High"
-    return "High — top band"
+    for i, (band_name, lo, hi, _) in enumerate(BANDS):
+        if band_name == name and i + 1 < len(BANDS):
+            return f"{name} — {hi - score:.1f} points from {BANDS[i + 1][0]}"
+    return f"{name} — top band"
 
 
 def key_facts(d: Dict[str, Any]) -> List[str]:
@@ -535,6 +551,7 @@ def summary_html(d: Dict[str, Any]) -> str:
 <div class="scale-wrap"><div class="scale">{segs}</div><span class="mk" style="left:calc({min(score, 100):g}% - 1px)"></span></div>
 <div class="scale-l">{marks}</div>
 <div class="p2" style="margin-top:10px;font-size:15px">{esc(_next_band_line(score, c['label']))}</div>
+{'<div class="cap">Confirmed needs a specific official (Tier A) source</div>' if c['label'] == 'Likely' and c.get('has_tier_a_specific') is False else ''}
 <div class="cap">computed from evidence, not the model’s guess</div></div></div>
 <div class="facts">{facts}</div>"""
 

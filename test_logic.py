@@ -67,6 +67,20 @@ assert ai.count_evidence(far, [{"from_url": "https://a.com/1", "to_url": "https:
 assert ai.compute_confidence(sup(3), [], 4)["formula_version"] == ai.FORMULA_VERSION
 print("evidence weighting checks passed")
 
+# ---- explainable confidence: 5 bands, Confirmed needs a specific Tier-A item, what-ifs computed in Python
+assert [ai.confidence_label(x) for x in (95, 85, 84.9, 65, 64.9, 45, 44.9, 25, 24.9, 0)] ==     ["Confirmed", "Confirmed", "Likely", "Likely", "Plausible", "Plausible", "Speculative", "Speculative", "Unsupported", "Unsupported"]
+assert spec_c["label"] == "Confirmed" and spec_c["has_tier_a_specific"]
+news_only = [{"id": f"B{i}", "url": f"https://news{i}.com/a", "source_type": "Secondary", "title": f"Acme raises $40M on March {i + 1}",
+              "stream": s_, "published_date": _ago(1)} for i, s_ in enumerate(ai.STREAM_NAMES * 2)]
+nc = ai.compute_confidence(news_only, [], 4)
+assert nc["score"] <= 84 and nc["label"] != "Confirmed" and any("Tier A" in x for x in nc["caps"]), nc["score"]
+wi = spec_c["what_if"]
+assert wi["raise"] and wi["lower"] and all(x["delta"] > 0 for x in wi["raise"]) and all(x["delta"] < 0 for x in wi["lower"])
+assert all(abs(x["new_score"] - spec_c["score"] - x["delta"]) < 0.11 for x in wi["raise"] + wi["lower"])
+assert any("Tier A" in x["text"] for x in vague_c["what_if"]["raise"])
+assert all(e["id"].startswith("S") for e in specific2)                     # what-ifs never leak into real evidence
+print("explainable confidence checks passed")
+
 # URL resolution: invented IDs are dropped, URLs come only from the pool
 pool = {"E1": {"title": "t", "url": "https://a.com/x", "provenance": "Primary", "stream": "S"}}
 out = ai._resolve([{"evidence_id": "E1", "claim": "c"}, {"evidence_id": "E99", "claim": "fake"}], pool, "supporting")
@@ -152,6 +166,12 @@ assert tr.history_adjustment(["hiring"], "SaaS", 60)["n"] == 0
 # refuted-heavy history pulls down, capped at -10
 for _ in range(6): mk("refuted", pattern=("market_news",), industry="hardware")
 assert tr.history_adjustment(["market_news"], "hardware", 80)["adjustment"] == -10.0
+# history may not lift a score past its caps (e.g. 84 without a specific Tier-A source)
+an_h = {"confidence": {"score": 80.0, "label": "Likely", "max_score": 84.0, "breakdown": [], "caps": []},
+        "supporting": [{"stream": "Talent"}, {"stream": "Product"}], "industry": "SaaS"}
+for _ in range(5): mk("confirmed", pattern=("hiring", "product_change"), industry="SaaS")
+tr.apply_history(an_h, ai.confidence_label)
+assert an_h["confidence"]["score"] == 84.0 and an_h["confidence"]["label"] == "Likely", an_h["confidence"]
 # pending/expired do not count as resolved
 mk("pending", pattern=("x",), industry="other"); assert tr.history_adjustment(["x"], "other", 50)["n"] == 0
 # expiry after 90 days
@@ -204,8 +224,8 @@ assert alerts.evaluate("A", "a", an(62, "Moderate"), nodiff, {"confidence": 58})
 al = alerts.evaluate("A", "a", an(75.5, "High"), nodiff, {"confidence": 60})
 assert al and al["confidence"]["old"] == 60 and "moved +15.5" in al["reasons"][0]
 # band cross with a small move
-al2 = alerts.evaluate("A", "a", an(75.0, "High"), nodiff, {"confidence": 74})
-assert al2 and "crossed from Moderate to High" in al2["reasons"][0]
+al2 = alerts.evaluate("A", "a", an(65.0, "Likely"), nodiff, {"confidence": 64})
+assert al2 and "crossed from Plausible to Likely" in al2["reasons"][0]
 # new heavy source triggers, community source below threshold does not
 heavy = {"first_scan": False, "new_signals": [{"category": "X", "title": "New doc", "url": "https://d.com", "provenance": "Primary"}]}
 light = {"first_scan": False, "new_signals": [{"category": "X", "title": "Reddit", "url": "https://r.com", "provenance": "Community"}]}

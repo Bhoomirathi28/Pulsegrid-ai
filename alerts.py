@@ -5,7 +5,7 @@ Watchlist + alerts. Alerts fire when a company is RESCANNED (manually in the app
 the daily watch_runner.py GitHub Action) - never in real time.
 
 Triggers (all computed in Python from real scan data):
-  * confidence moved by >= CONF_MOVE points, or crossed a band (Low / Moderate / High)
+  * confidence moved by >= CONF_MOVE points, or crossed a band (Unsupported / Speculative / Plausible / Likely / Confirmed)
   * new source(s) appeared whose source weight (Primary 1.0 / Secondary 0.7 / Community 0.4)
     is >= NEW_SIGNAL_MIN_WEIGHT
   * a prediction was resolved
@@ -24,7 +24,7 @@ from config import (SLACK_WEBHOOK_URL, APP_URL, SMTP_HOST, SMTP_PORT, SMTP_USER,
                     SMTP_PASSWORD, ALERT_EMAIL_TO, redact, is_placeholder)
 from store import Table
 from search_engine import PulseGridError, is_valid_url
-from ai_engine import FORMULA_VERSION
+from ai_engine import FORMULA_VERSION, confidence_label
 
 CONF_MOVE = 10.0
 NEW_SIGNAL_MIN_WEIGHT = 0.7
@@ -151,7 +151,7 @@ def test_alert(company: str = "Test company") -> List[str]:
 def band(label_or_score: Any) -> str:
     if isinstance(label_or_score, str):
         return label_or_score
-    return "High" if label_or_score >= 75 else "Moderate" if label_or_score >= 50 else "Low"
+    return confidence_label(float(label_or_score))
 
 
 def dedupe_key(slug: str, kind: str, detail: Any) -> str:

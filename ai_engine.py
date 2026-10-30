@@ -17,7 +17,7 @@ Python looks the URL up in the retrieved Tavily results.
 import json
 import re
 import concurrent.futures
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 from urllib.parse import urlparse
 
@@ -39,7 +39,7 @@ SOURCE_WEIGHT = {"Primary": 1.0, "Secondary": 0.7, "Community": 0.4}
 
 # Bump when the scoring formula changes; stored with every prediction so alerts never
 # compare scores made by different formulas.
-FORMULA_VERSION = 2
+FORMULA_VERSION = 3
 
 # (key, label, weight) - weights sum to 1.0 and are shown in the UI.
 # Every factor is scaled by evidence strength, so weak evidence can't earn free points.
@@ -250,8 +250,18 @@ def _age_days(published: Optional[str]) -> Optional[float]:
     return (datetime.now(timezone.utc) - dt).total_seconds() / 86400
 
 
+# (name, lower bound) from the top. Confirmed also needs a counted, specific Tier-A item (see _score).
+CONFIDENCE_BANDS = [("Confirmed", 85.0), ("Likely", 65.0), ("Plausible", 45.0), ("Speculative", 25.0), ("Unsupported", 0.0)]
+CONFIRMED_NEEDS_TIER_A_CAP = 84.0
+MAX_SCORE = 95.0   # never claim near-certainty
+UNTESTED_CAP = 60.0
+
+
 def confidence_label(score: float) -> str:
-    return "High" if score >= 75 else "Moderate" if score >= 50 else "Low"
+    for name, lo in CONFIDENCE_BANDS:
+        if score >= lo:
+            return name
+    return "Unsupported"
 
 
 def _host(url: Any) -> str:
@@ -400,10 +410,9 @@ def count_evidence(items: List[Dict[str, Any]], links: Optional[List[Dict[str, s
             "merged": merged, "domain_capped": capped}
 
 
-def compute_confidence(supporting: List[Dict[str, Any]], contradicting: List[Dict[str, Any]],
-                       adversarial_results_found: int, links: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
-    """Deterministic confidence score from evidence. Returns score, label and per-factor breakdown.
-    Adds weight fields (tier, specific, weight, counted, ...) to each evidence item in place."""
+def _score(supporting: List[Dict[str, Any]], contradicting: List[Dict[str, Any]],
+           adversarial_results_found: int, links: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+    """The scoring formula itself (no what-ifs). Adds weight fields to each item in place."""
     sup = count_evidence(supporting, links)
     con = count_evidence(contradicting)
     s, c = sup["strength"], con["strength"]
@@ -424,17 +433,87 @@ def compute_confidence(supporting: List[Dict[str, Any]], contradicting: List[Dic
                  for k, l, w in CONFIDENCE_FACTORS]
     score = sum(b["points"] for b in breakdown)
 
-    caps = []
+    caps, max_score = [], MAX_SCORE
     if adversarial_results_found == 0:
-        score = min(score, 60.0)
-        caps.append("Capped at 60: the adversarial search returned no results, so the hypothesis was not meaningfully tested.")
+        max_score = min(max_score, UNTESTED_CAP)
+        if score > UNTESTED_CAP:
+            caps.append(f"Capped at {UNTESTED_CAP:g}: the counter-search returned no results, so the hypothesis was not meaningfully tested.")
+    has_tier_a_specific = any(e.get("counted") and e.get("tier") == "A" and e.get("specific") for e in supporting)
+    if not has_tier_a_specific:
+        max_score = min(max_score, CONFIRMED_NEEDS_TIER_A_CAP)
+        if score > CONFIRMED_NEEDS_TIER_A_CAP:
+            caps.append(f"Capped at {CONFIRMED_NEEDS_TIER_A_CAP:g}: Confirmed (85+) needs at least one specific official (Tier A) source.")
     if not supporting:
         score = 0.0
-    score = round(min(score, 95.0), 1)  # never claim near-certainty
-    label = confidence_label(score)
-    return {"score": score, "label": label, "breakdown": breakdown, "caps": caps,
+    score = round(min(score, max_score), 1)
+    return {"score": score, "label": confidence_label(score), "breakdown": breakdown, "caps": caps,
+            "max_score": max_score, "has_tier_a_specific": has_tier_a_specific,
             "support_strength": round(s, 3), "contradiction_strength": round(c, 3),
             "formula_version": FORMULA_VERSION}
+
+
+STREAM_NAMES = ["Talent & Hiring Signals", "Product & Pricing Drift", "Customer Friction & Complaints", "Market & News Signals"]
+
+
+def _hypothetical(tier: str, stream: str, n: int) -> Dict[str, Any]:
+    """A fresh, specific made-up item used only to compute what-if deltas; never shown as evidence."""
+    return {"id": f"H{n}", "url": f"https://what-if-{n}.invalid/x",
+            "source_type": "Primary" if tier == "A" else "Secondary", "stream": stream,
+            "title": f"What-if item {n}: v1.0 on March 3 for $1 million", "snippet": "",
+            "published_date": datetime.now(timezone.utc).isoformat()}
+
+
+def what_would_change(supporting: List[Dict[str, Any]], contradicting: List[Dict[str, Any]],
+                      adversarial_results_found: int, links: Optional[List[Dict[str, str]]],
+                      base: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    """Re-runs the formula on modified copies of the evidence to show what would raise or lower the score."""
+    covered = [s for s in STREAM_NAMES if any(e.get("counted") and e.get("stream") == s for e in supporting)]
+    missing = [s for s in STREAM_NAMES if s not in covered]
+
+    def run(sup, con, adv=adversarial_results_found):
+        return _score([dict(e) for e in sup], [dict(e) for e in con], adv, links)["score"]
+
+    def item(text, new):
+        delta = round(new - base["score"], 1)
+        return {"text": text, "delta": delta, "new_score": new, "new_band": confidence_label(new)}
+
+    up, down = [], []
+    a_text = "One specific official (Tier A) source, e.g. a changelog, pricing page or filing with numbers or dates"
+    if not base["has_tier_a_specific"]:
+        a_text += " (also needed for Confirmed)"
+    up.append(item(a_text, run(supporting + [_hypothetical("A", (covered or STREAM_NAMES)[0], 1)], contradicting)))
+    if missing:
+        up.append(item(f"A specific news report from a stream not yet covered ({missing[0]})",
+                       run(supporting + [_hypothetical("B", missing[0], 2)], contradicting)))
+    if adversarial_results_found == 0:
+        up.append(item("A counter-search that returns results without contradicting it", run(supporting, contradicting, 1)))
+    con_top = sorted((e for e in contradicting if e.get("counted")), key=lambda e: -e.get("weight", 0))
+    if con_top:
+        up.append(item(f"The strongest contradiction ({_host(con_top[0].get('url'))}) turning out to be wrong",
+                       run(supporting, [e for e in contradicting if e is not con_top[0]])))
+
+    down.append(item("One specific news report that contradicts the hypothesis",
+                     run(supporting, contradicting + [_hypothetical("B", "Adversarial search", 3)])))
+    sup_top = sorted((e for e in supporting if e.get("counted")), key=lambda e: -e.get("weight", 0))
+    if sup_top:
+        down.append(item(f"The strongest supporting item ({_host(sup_top[0].get('url'))}) being withdrawn or wrong",
+                         run([e for e in supporting if e is not sup_top[0]], contradicting)))
+    if any(e.get("age_days") is not None for e in supporting):
+        now = datetime.now(timezone.utc)
+        aged = [dict(e, published_date=(now - timedelta(days=e["age_days"] + HALF_LIFE_DAYS)).isoformat())
+                if e.get("age_days") is not None else dict(e) for e in supporting]
+        down.append(item(f"{HALF_LIFE_DAYS:g} more days with no new evidence (dated items lose half their weight)",
+                         run(aged, contradicting)))
+    return {"raise": [x for x in up if x["delta"] > 0], "lower": [x for x in down if x["delta"] < 0]}
+
+
+def compute_confidence(supporting: List[Dict[str, Any]], contradicting: List[Dict[str, Any]],
+                       adversarial_results_found: int, links: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+    """Deterministic confidence score from evidence: score, band, per-factor breakdown, caps, and what
+    would raise / lower it. Adds weight fields (tier, specific, weight, counted, ...) to each item in place."""
+    base = _score(supporting, contradicting, adversarial_results_found, links)
+    base["what_if"] = what_would_change(supporting, contradicting, adversarial_results_found, links, base)
+    return base
 
 
 # ------------------------------------------------------------------ simulation

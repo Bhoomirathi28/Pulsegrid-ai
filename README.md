@@ -37,15 +37,25 @@ Guardrails: output is parsed robustly (code fences and `<think>` blocks stripped
 - **Adversarial search:** Nemotron-written counter-queries are run through Tavily to look for contradicting evidence. If this search returns nothing, the confidence score is capped at 60 because the hypothesis was not meaningfully tested.
 
 ## Confidence score (computed in Python)
+**Each evidence item** gets a weight = tier × specificity × recency, capped at 0.85:
+
+| | |
+|---|---|
+| Tier | A official 1.0 (company site, careers/job pages, .gov) · B news 0.7 · C blogs 0.45 · D forums 0.25 |
+| Specificity | specific 1.0 / vague 0.5. Specific = the source's own text names money, numbers, dates or products/versions. Job pages are vague by default. |
+| Recency | halves every 45 days; undated items count as 45 days old |
+
+Items about the same event count once. The model's "related items" links are only accepted when the titles share 2+ distinctive words and the dates are within 14 days. All job ads on one careers site count as one hiring signal. At most 3 items per domain count. Counted items combine with noisy-OR: strength = 1 − Π(1 − w).
+
 | Factor | Weight |
 |---|---|
-| Source-weighted supporting vs contradicting evidence | 35% |
-| Amount of supporting evidence (full marks at 6 items) | 20% |
-| Source quality (Primary 1.0 / Secondary 0.7 / Community 0.4) | 20% |
-| Recency (undated sources count as 0.4) | 15% |
-| Coverage across the 4 streams | 10% |
+| Evidence strength (noisy-OR) | 70% |
+| Support vs contradiction, scaled by strength | 20% |
+| Coverage across the 4 streams, scaled by strength | 10% |
 
-Maximum reported score is 95%. The UI shows each factor's value and points.
+**Bands:** Confirmed 85+ (only with a counted, specific Tier-A item; otherwise capped at 84) · Likely 65–84 · Plausible 45–64 · Speculative 25–44 · Unsupported 0–24. Maximum 95. The UI shows each item's weight ("Tier A · specific · 12d ago · w 0.82 · domain"), the factor points, how many points to the next band, and **what would raise / lower** the score (each computed by re-running the formula on changed evidence).
+
+The formula version is stored with every prediction; a confidence-change alert is skipped when the previous score came from an older formula.
 
 ## Track record
 - Every live investigation is saved automatically as a **prediction** (hypothesis, industry label, pattern signature = the stream types that supported it, confidence, factor breakdown).
@@ -57,7 +67,7 @@ Maximum reported score is 95%. The UI shows each factor's value and points.
 ## Alerts and watchlist
 Alerts fire when a watched company is **rescanned** (manually in the app, or by the daily GitHub Action in `.github/workflows/watch.yml`). They are **not real-time**.
 
-Triggers (computed in Python): confidence moved by 10+ points or crossed a band (Low / Moderate / High); a new source with source weight ≥ 0.7 appeared (Primary 1.0 / Secondary 0.7 / Community 0.4); a prediction was resolved. The same alert is never sent twice (`alert_log`).
+Triggers (computed in Python): confidence moved by 10+ points or crossed a band (Unsupported / Speculative / Plausible / Likely / Confirmed); a new source with source weight ≥ 0.7 appeared (Primary 1.0 / Secondary 0.7 / Community 0.4); a prediction was resolved. The same alert is never sent twice (`alert_log`).
 
 Setup:
 1. Run `supabase_schema.sql` in the Supabase SQL editor (tables `predictions`, `watchlist`, `alert_log`, RLS on, no public policies; the app uses the service_role key server-side).
