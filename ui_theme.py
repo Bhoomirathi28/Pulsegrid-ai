@@ -209,6 +209,16 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .st-key-see_results button{min-height:60px !important;font-size:17px !important;}
 @media (max-width:640px){.srow .sn .sk{display:block;margin-left:0;}}
 
+/* investigate */
+.st-key-inv_col{max-width:860px;margin:24px auto 0;}
+.istatus{font:400 13px 'JetBrains Mono',monospace;color:var(--green-t);} .istatus.bad{color:var(--red-t);}
+.ih1{font:700 clamp(34px,5.6vw,54px)/1.08 'Rajdhani',sans-serif;color:var(--cream);margin:18px 0 14px;}
+.st-key-inv_col [data-testid="stTextInput"] input{height:56px;font-size:16px !important;}
+.st-key-inv_col [data-testid="stFormSubmitButton"] button{min-height:58px;}
+.try{font:400 13px 'JetBrains Mono',monospace;color:var(--muted);}
+.pillars{display:flex;gap:32px;flex-wrap:wrap;} .pillar{flex:1 1 220px;min-width:0;}
+.pillar .pt{font-size:14px;line-height:1.55;color:var(--muted);margin-top:8px;}
+
 /* actions */
 .rcards{display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;}
 .rcard{flex:1 1 260px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:22px;background:var(--inset);}
@@ -337,13 +347,28 @@ def hair_html() -> str:
     return '<div class="hair"></div>'
 
 
-def idle_html(tavily_ok: bool, nebius_ok: bool, model: str) -> str:
-    t = '<span class="st-done">Tavily ready</span>' if tavily_ok else '<span style="color:#FF9B8F">Tavily not configured</span>'
-    n = f'<span class="st-done">Nebius ready · {esc(model)}</span>' if nebius_ok else '<span style="color:#FF9B8F">Nebius not configured</span>'
-    return f"""<div class="panel alt" style="text-align:center;padding:56px 24px">
-<div class="eyebrow">Ready</div><div class="h1">Name a company. Watch the agent argue with itself.</div>
-<div class="p2">Four agents search the live web, one hypothesis forms, then the agent tries to break it.</div>
-<div class="status mono" style="justify-content:center;margin-top:18px">{t}<span>·</span>{n}</div></div>"""
+# ------------------------------------------------------------------ screen 2: investigate
+def investigate_top_html(tavily_ok: bool, nebius_ok: bool, model: str, simulated: bool) -> str:
+    if simulated:
+        status = '<div class="istatus bad">● SIMULATED · DEMO_SIMULATION=true — no live calls are made</div>'
+    elif tavily_ok and nebius_ok:
+        status = f'<div class="istatus">● LIVE · Tavily ready · {esc(model)} on Nebius ready</div>'
+    else:
+        t = "Tavily ready" if tavily_ok else "Tavily not configured"
+        n = f"{esc(model)} on Nebius ready" if nebius_ok else "Nebius not configured"
+        status = f'<div class="istatus bad">● NOT CONFIGURED · {t} · {n}</div>'
+    return f"""{status}<div class="ih1">Name a company.<br>Watch the agent argue with itself.</div>
+<div class="p2">Four agents search the live web, one hypothesis forms, then PulseGrid tries to prove itself wrong before it gives you a verdict.</div>"""
+
+
+PILLARS = [("Four live streams", "Hiring, product and pricing, customer friction and market news, searched in parallel with Tavily."),
+           ("Argues against itself", "Nemotron forms one hypothesis, then searches the web for evidence that it is wrong."),
+           ("Score you can check", "Confidence is computed in Python from weighted evidence, and every factor is shown.")]
+
+
+def pillars_html() -> str:
+    cols = "".join(f'<div class="pillar"><div class="lab turm">{esc(t)}</div><div class="pt">{esc(x)}</div></div>' for t, x in PILLARS)
+    return f'<div class="hair" style="margin:8px 0 28px"></div><div class="pillars">{cols}</div>'
 
 
 # ------------------------------------------------------------------ screen 3: thinking

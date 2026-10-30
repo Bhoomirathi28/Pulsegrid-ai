@@ -244,17 +244,32 @@ def save_and_alert(company: str, search_data: dict, analysis: dict, run: dict, a
 
 
 # ---------------------------------------------------------------- screens
+def fill_company(name: str) -> None:
+    st.session_state.company_input = name
+
+
 def screen_investigate() -> None:
-    ui.render(ui.idle_html(tavily_client is not None, nebius_client is not None, NEBIUS_MODEL))
-    with st.form("investigate", border=False):
-        c_in, c_btn = st.columns([4, 1.3], vertical_alignment="bottom")
-        company = c_in.text_input("Company", key="company_input", placeholder="Company to investigate, e.g. Databricks",
-                                  max_chars=60, label_visibility="collapsed")
-        submitted = c_btn.form_submit_button("Investigate", type="primary", use_container_width=True)
-    if submitted and company.strip() and start_investigation(company):
-        st.rerun()
-    if st.session_state.form_error:
-        st.error(st.session_state.form_error)
+    with st.container(key="inv_col"):
+        ui.render(ui.investigate_top_html(tavily_client is not None, nebius_client is not None, NEBIUS_MODEL, SIMULATED))
+        with st.form("investigate", border=False):
+            c_in, c_btn = st.columns([4, 1.3], vertical_alignment="bottom")
+            company = c_in.text_input("Company", key="company_input", placeholder="Company to investigate, e.g. Databricks",
+                                      max_chars=60, label_visibility="collapsed")
+            submitted = c_btn.form_submit_button("Investigate", type="primary", use_container_width=True)
+        if submitted and company.strip() and start_investigation(company):
+            st.rerun()
+        if st.session_state.form_error:
+            st.error(st.session_state.form_error)
+        with st.container(horizontal=True, vertical_alignment="center", gap="small"):
+            ui.render('<span class="try">Try:</span>')
+            for name in ("Databricks", "Figma", "Notion"):
+                st.button(name, key=f"chip_{name}", on_click=fill_company, args=(name,))
+        if has_results():
+            st.button(f"← Back to results · {st.session_state.active_company}", key="back_to_results",
+                      type="tertiary", on_click=go, args=("results",))
+        ui.render(ui.spacer(20))
+        ui.render(ui.pillars_html())
+        ui.render(ui.footer_html())
 
 
 def screen_thinking() -> None:
