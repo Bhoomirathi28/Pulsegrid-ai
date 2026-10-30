@@ -1,153 +1,119 @@
-<div align="center">
+# PulseGrid AI
 
-# ⚡ PulseGrid AI
+### Competitive intelligence that argues with itself
 
-### A competitive-intelligence agent that tries to prove its own conclusions wrong
+PulseGrid AI investigates a company from the live web, forms one hypothesis about its direction, then runs a second search designed to prove that hypothesis wrong. NVIDIA Nemotron does the reasoning, Tavily supplies the evidence, and the confidence score is computed in plain Python from the evidence, not guessed by the model. Every claim links to a real retrieved source, and when a live call fails the app shows the error instead of inventing data.
 
-*Built for the Nebius × NVIDIA Global AI Hackathon*
+**Built for the Nebius x NVIDIA Global AI Hackathon 2026**
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)
-![Model](https://img.shields.io/badge/LLM-NVIDIA%20Nemotron-76B900?logo=nvidia&logoColor=white)
-![Search](https://img.shields.io/badge/Search-Tavily-1F6F78)
 ![License](https://img.shields.io/badge/License-MIT-blue)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB)
 
-[Live Demo](#) · [Video Walkthrough](#) · [Quickstart](#-quickstart) · [Deployment](#-deployment)
+## Links
 
-<!-- TODO: replace the "#" links above with the Streamlit URL and YouTube link, and add a screenshot:
-![PulseGrid AI](docs/screenshot.png) -->
+- **Live demo:** https://pulsegrid-ai19.streamlit.app
+- **Demo video:** <YOUTUBE_LINK>
+- **Note:** the free Streamlit app may be asleep. Click **"Yes, get this app back up"** and wait about 30 seconds.
+- **License:** [MIT](LICENSE) (OSI-approved)
 
-</div>
+## How we use NVIDIA Nemotron
 
----
+- **Model:** `nvidia/nemotron-3-super-120b-a12b` (`DEFAULT_MODEL` in [config.py](config.py); override with `NEBIUS_MODEL`).
+- **Why Nemotron 3 Super 120B:**
+  - Multi-step reasoning: it has to turn numbered evidence into a hypothesis, then judge a second set of results against it.
+  - Instruction following: strict JSON output, evidence-ID citations, and treating web text as data.
+  - About 12B active parameters (mixture of experts), which keeps latency reasonable for an interactive app.
+- **Three calls per investigation** ([ai_engine.py](ai_engine.py)):
+  1. **Hypothesis:** reads the numbered evidence (E1, E2, ...) and returns one hypothesis, the supporting evidence IDs, and counter-queries meant to disprove it.
+  2. **Contradiction judging:** reads the adversarial results (A1, A2, ...) and returns which ones genuinely contradict the hypothesis, plus an alternative explanation.
+  3. **Narrative and actions:** given the already-computed score, writes the executive summary, "Why not higher?" and the recommendations.
+- **JSON mode:** every call uses `response_format={"type": "json_object"}`. Output is schema-checked, with one retry if it is invalid.
+- **Evidence-ID citing:** the model cites IDs only and never writes URLs. Python maps IDs back to the retrieved Tavily results, and unknown IDs are dropped.
+- **Scores computed in Python:** the model sees the final score but is told not to change it.
+- On rescans of a company that has pending predictions, Nemotron is also asked to suggest whether new evidence resolves an earlier prediction (the suggestion is only applied if you accept it).
 
-## 📑 Table of Contents
+## Where Nebius Token Factory accelerated our workflow
 
-1. [What it does](#-what-it-does)
-2. [How it works](#-how-it-works)
-3. [Tech stack](#-tech-stack)
-4. [Quickstart](#-quickstart)
-5. [Configuration](#-configuration)
-6. [Deployment](#-deployment)
-7. [Confidence score](#-confidence-score)
-8. [Track record and learning](#-track-record-and-learning)
-9. [Watchlist and alerts](#-watchlist-and-alerts)
-10. [How Nemotron and Tavily are used](#-how-nemotron-and-tavily-are-used)
-11. [Security](#-security)
-12. [Limitations](#-limitations)
-13. [Project layout](#-project-layout)
-14. [About the names](#-about-the-names)
-15. [License](#-license)
+- **OpenAI-compatible API:** we use the standard `openai` client. Only the base URL (`https://api.tokenfactory.us-central1.nebius.com/v1/`) and the API key changed, so there was no custom SDK to learn.
+- **No GPU provisioning or model hosting:** Nemotron 3 Super 120B is available as a hosted endpoint, so we went from an API key to working calls without standing up inference ourselves.
+- **`/models` endpoint:** [check_models.py](check_models.py) lists the models your key can use and prints the Nemotron IDs, which is how we found the correct model ID.
+- **One key, every environment:** the same `NEBIUS_API_KEY` works locally, on Streamlit Community Cloud, and in the daily GitHub Action.
 
----
+## How we use Tavily
 
-## 🎯 What it does
+Two kinds of searches per investigation ([search_engine.py](search_engine.py), [ai_engine.py](ai_engine.py)):
 
-Most competitive-intelligence tools run one prompt and print an unverified summary. **PulseGrid AI investigates a company, forms a hypothesis, then actively tries to disprove it** before giving you a score you can audit.
+1. **Discovery:** 4 parallel `advanced` searches: talent and hiring, product and pricing, customer friction, market and news. Each result is classified Primary, Secondary or Community by domain.
+2. **Adversarial counter-search:** Nemotron writes up to 2 counter-queries, which run in parallel through Tavily to look for evidence against the hypothesis.
 
-- Every claim links back to a real source retrieved from the live web.
-- The confidence score is **calculated in Python**, not guessed by the model, and the factor breakdown is shown in the UI.
-- Past predictions are saved, so the system can show how accurate it has actually been.
-- All data is live. If an API call fails, the app shows the error. It never invents data unless you explicitly turn on `DEMO_SIMULATION=true`, which puts a red **SIMULATED DATA — NOT LIVE** banner on every screen.
+## What it does
 
-## 🔄 How it works
-
-```text
- Company name
-      │
-      ▼
- 1. INVESTIGATE   4 parallel live-web searches (Tavily): talent, product/pricing,
-                  customer friction, market news  →  up to 20 sources
-      │
-      ▼
- 2. HYPOTHESIZE   Nemotron reads the numbered evidence and forms ONE hypothesis
-                  (always labelled "HYPOTHESIS — NOT FACT")
-      │
-      ▼
- 3. ATTACK        Nemotron writes counter-queries; Tavily runs a "prove me wrong" search
-      │
-      ▼
- 4. CLASSIFY      Nemotron marks which results genuinely contradict the hypothesis
-      │
-      ▼
- 5. SCORE         Confidence is computed in Python from the evidence (not by the model)
-      │
-      ▼
- 6. EXPLAIN       Model writes only the summary, "Why not higher?" and recommendations
-      │
-      ▼
- 7. BASELINE      Scan is saved as a snapshot; rescan later to see which sources are new
+```mermaid
+flowchart TD
+    A[Company name] --> B[4 parallel Tavily streams]
+    B --> C[Classify sources: Primary / Secondary / Community]
+    C --> D[Nemotron: one hypothesis + counter-queries]
+    D --> E[Tavily adversarial counter-search]
+    E --> F[Nemotron: which results contradict?]
+    F --> G[Python: confidence score]
+    G --> H[Nemotron: summary, Why not higher?, recommendations]
+    H --> I[Save prediction + snapshot, alert check]
 ```
 
-## 🧰 Tech stack
+**Screens** ([app.py](app.py)): Investigate, Thinking (live progress), Results, Actions. Two pages sit in the top nav:
 
-| Layer | Technology |
-|---|---|
-| UI | Streamlit with a custom folk-art (Kolam) theme |
-| LLM | NVIDIA `nemotron-3-super-120b-a12b` on **Nebius Token Factory** (OpenAI-compatible API) |
-| Web search | **Tavily** (`advanced` depth) |
-| Storage | Supabase (Postgres), with automatic fallback to a local JSON file |
-| Alerts | Slack webhook, optional SMTP email |
-| Automation | GitHub Actions (daily watchlist rescan) |
-| Packaging | Docker and Docker Compose |
+- **Investigate:** enter a company name (max 60 characters, 5 investigations per session).
+- **Thinking:** six stages with a live activity log: search the live web, sort evidence, form hypothesis, challenge hypothesis, verdict, save and alert.
+- **Results:** hypothesis (labelled as a hypothesis, not fact), supporting and contradicting evidence, "Why not higher?", and tabs for the score breakdown, self-challenge log, what changed since the last scan, all sources, and how it ran.
+- **Actions:** recommended actions tied to the evidence they respond to, a log of what was saved, watch/unwatch, and a Markdown report download.
+- **Watchlist:** watched companies, manual rescan, test alert. A daily GitHub Action ([watch.yml](.github/workflows/watch.yml)) also rescans them. Alerts fire on rescans, not in real time.
+- **Track record:** every live investigation is saved as a prediction. Outcomes are recorded only when you accept a suggestion or enter one. Confidence is adjusted by at most +/-10 points, and only once a pattern and industry group has at least 5 resolved predictions.
 
-## 🚀 Quickstart
+**Confidence score** (Python, shown factor by factor in the UI): weighted support vs contradiction 35%, amount of supporting evidence 20%, source quality 20%, recency 15%, coverage across the 4 streams 10%. The maximum is 95, and it is capped at 60 if the adversarial search returns nothing.
 
-**Prerequisites:** Python 3.11+, a [Tavily](https://tavily.com) API key, and a [Nebius Token Factory](https://tokenfactory.nebius.com) API key. Supabase is optional.
+## Trust and safety
+
+- **Evidence-ID mapping:** URLs come only from retrieved Tavily results, never from model output.
+- **Python scoring:** the confidence number is deterministic and auditable.
+- **Prompt-injection delimiters:** web text is wrapped in `<web_content>` tags, tag-closing text is stripped, and the system prompt tells the model to treat it as untrusted data.
+- **HTML escaping:** web and model text is escaped before rendering, and only `http`/`https` links are rendered as links.
+- **No silent fake data:** failed calls show an error. Fake data appears only with `DEMO_SIMULATION=true`, under a red SIMULATED banner.
+- **Key redaction:** configured keys are stripped from error messages before they are shown.
+- **Supabase RLS:** row-level security is enabled on `predictions`, `watchlist` and `alert_log` with no public policies, so only the server-side service_role key can access them.
+
+## Setup
+
+Requires Python 3.11+, a [Tavily](https://tavily.com) key and a [Nebius Token Factory](https://tokenfactory.nebius.com) key. Supabase is optional.
 
 ```bash
-# 1. Clone
 git clone https://github.com/<your-username>/Pulsegrid-ai.git
 cd Pulsegrid-ai
-
-# 2. (Recommended) create a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-# 3. Install dependencies
 pip install -r requirements.txt
-
-# 4. Add your keys
-cp .env.example .env             # Windows: copy .env.example .env
-# open .env and fill in TAVILY_API_KEY and NEBIUS_API_KEY
-
-# 5. Verify the model ID your key can use
-python check_models.py
-
-# 6. Run the offline sanity checks
-python test_logic.py
-
-# 7. Start the app
-streamlit run app.py
+cp .env.example .env        # Windows: copy .env.example .env
 ```
 
-Open **http://localhost:8501**, type a company name, and click Investigate.
-
-## ⚙️ Configuration
-
-Keys are read from `st.secrets` first, then from environment variables / `.env`.
+Fill in `.env`. Every variable the app reads:
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `TAVILY_API_KEY` | ✅ | Live web search |
-| `NEBIUS_API_KEY` | ✅ | Access to Nemotron on Nebius Token Factory |
-| `NEBIUS_MODEL` | ➖ | Defaults to `nvidia/nemotron-3-super-120b-a12b` |
-| `SUPABASE_URL` | ➖ | Persistent storage for snapshots, predictions, watchlist |
-| `SUPABASE_KEY` | ➖ | Supabase **service_role** key (server-side only, never commit it) |
-| `SLACK_WEBHOOK_URL` | ➖ | Slack incoming webhook for alerts |
-| `APP_URL` | ➖ | Link included in alert messages |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL_TO` | ➖ | Optional email alerts |
-| `DEMO_SIMULATION` | ➖ | `true` shows fake data under a red banner. Leave unset for live mode. |
+| `TAVILY_API_KEY` | yes | Live web search |
+| `NEBIUS_API_KEY` | yes | Nemotron on Nebius Token Factory |
+| `NEBIUS_MODEL` | no | Defaults to `nvidia/nemotron-3-super-120b-a12b` |
+| `SUPABASE_URL`, `SUPABASE_KEY` | no | Persistent storage (service_role key; server-side only). Without it, data goes to local JSON files. |
+| `SLACK_WEBHOOK_URL` | no | Slack alerts |
+| `APP_URL` | no | Link included in alerts |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL_TO` | no | Email alerts |
+| `DEMO_SIMULATION` | no | `true` shows fake data under a red banner. Leave unset for live mode. |
 
-### Setting up Supabase (optional)
+Then:
 
-Without Supabase the app stores data in a local JSON file. That works locally but is wiped on Streamlit Community Cloud restarts.
+```bash
+python check_models.py      # confirm the model ID your key can use
+streamlit run app.py        # open http://localhost:8501
+python test_logic.py        # offline tests
+```
 
-1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor**, paste the contents of [`supabase_schema.sql`](supabase_schema.sql), and run it. This creates `predictions`, `watchlist` and `alert_log` with row-level security on and no public policies.
-3. Copy the project URL and the **service_role** key into `SUPABASE_URL` and `SUPABASE_KEY`.
-
-4. For snapshot diffing (rescan comparisons), also run this in the SQL editor:
+**Supabase (optional):** in the SQL editor run [supabase_schema.sql](supabase_schema.sql) (creates `predictions`, `watchlist`, `alert_log`). That file does not create `scan_cache`, which is used for snapshot diffing, so also run:
 
 ```sql
 create table if not exists scan_cache (
@@ -157,150 +123,55 @@ create table if not exists scan_cache (
     raw_streams jsonb not null,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+alter table scan_cache enable row level security;
 ```
 
-## ☁️ Deployment
+## Deploy on Streamlit Community Cloud
 
-### Option A: Streamlit Community Cloud (easiest)
+1. Push the repo to GitHub.
+2. On [share.streamlit.io](https://share.streamlit.io), create an app pointing at `app.py`.
+3. In **App settings, Secrets**, add (placeholders shown; see [.streamlit/secrets.toml.example](.streamlit/secrets.toml.example)):
 
-1. Push this repo to GitHub.
-2. On [share.streamlit.io](https://share.streamlit.io), create a new app pointing at `app.py`.
-3. Open **App settings → Secrets** and paste the contents of [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example) with your real values.
-
-### Option B: Docker
-
-```bash
-cp .env.example .env             # fill in your keys
-docker compose up -d --build
+```toml
+TAVILY_API_KEY = "your-tavily-key"
+NEBIUS_API_KEY = "your-nebius-key"
+NEBIUS_MODEL = "nvidia/nemotron-3-super-120b-a12b"
+SUPABASE_URL = "https://your-project.supabase.co"
+SUPABASE_KEY = "your-supabase-service-role-key"
+# optional alerts
+SLACK_WEBHOOK_URL = "your-slack-webhook-url"
+APP_URL = "https://your-app.streamlit.app"
 ```
 
-The app is served on port **8501** and includes a health check.
+**Optional daily rescan:** add the same values as GitHub repository secrets (`TAVILY_API_KEY`, `NEBIUS_API_KEY`, `NEBIUS_MODEL`, `SUPABASE_URL`, `SUPABASE_KEY`, `SLACK_WEBHOOK_URL`, `APP_URL`, and optionally the `SMTP_*` and `ALERT_EMAIL_TO` values). [watch.yml](.github/workflows/watch.yml) runs `watch_runner.py` at 03:30 UTC, scans at most 5 companies, and refuses to run without Supabase.
 
-### Option C: Nebius Cloud VM
+## About the names
 
-On a fresh Ubuntu VM, clone the repo, create `.env`, then run:
+Stage and heading names come from **Nyaya**, classical Indian logic, which required arguing against your own position before reaching a verdict. English is the main label in the app; the Sanskrit appears small beside it.
 
-```bash
-bash deploy.sh
-```
+| Term | Meaning | Where it appears |
+|---|---|---|
+| Guptachar | Secret agent, scout | "Search the live web" stage |
+| Pramana | Valid means of knowing (evidence) | "Sort evidence" stage, supporting evidence |
+| Anumana | Inference | "Form hypothesis" stage |
+| Purva Paksha | The opposing position, argued first | "Challenge hypothesis" stage, self-challenge |
+| Nirnaya | Conclusion, verdict | "Verdict" stage, score breakdown |
+| Smriti | Memory | Track record page |
 
-The script installs Docker, opens port 8501 in the firewall, builds the container and prints the public URL.
+## Limitations
 
-## 📊 Confidence score
-
-Computed entirely in Python. The UI shows each factor's value and the points it contributed.
-
-| Factor | Weight |
-|---|---|
-| Source-weighted supporting vs contradicting evidence | 35% |
-| Amount of supporting evidence (full marks at 6 items) | 20% |
-| Source quality (Primary 1.0 / Secondary 0.7 / Community 0.4) | 20% |
-| Recency (undated sources count as 0.4) | 15% |
-| Coverage across the 4 streams | 10% |
-
-- The maximum reported score is **95%**.
-- If the adversarial search returns nothing, the score is **capped at 60%**, because the hypothesis was not meaningfully tested.
-
-## 🧠 Track record and learning
-
-- Every live investigation is saved as a **prediction**: hypothesis, industry label, pattern signature (the stream types that supported it), confidence and factor breakdown.
-- **You** record the outcome: accept or dismiss a model suggestion, or mark it manually. Nemotron may *suggest* "confirmed" or "refuted" on a rescan, but only if it cites a real retrieved URL. Nothing resolves without your click.
-- Predictions still pending after **90 days** are marked `expired`.
-- **Learning rule:** only when a pattern + industry has **at least 5 resolved** predictions does confidence move toward that group's hit rate, by **at most ±10 points**. The UI explains the change (e.g. *"Adjusted -6 based on 7 past predictions"*). Below 5 it shows *"Not enough history yet (n/5)"*.
-- There is no seeded or fake history, so a fresh install starts empty.
-
-## 🔔 Watchlist and alerts
-
-Alerts fire when a watched company is **rescanned**, either manually in the app or by the daily GitHub Action ([`watch.yml`](.github/workflows/watch.yml), 03:30 UTC). They are **not real-time**.
-
-**Triggers** (all computed in Python):
-- Confidence moved by 10+ points or crossed a band (Low / Moderate / High)
-- A new source with weight ≥ 0.7 appeared
-- A prediction was resolved
-
-The same alert is never sent twice (tracked in `alert_log`).
-
-**Setup**
-1. Run `supabase_schema.sql` (see [Configuration](#setting-up-supabase-optional)).
-2. Create a Slack **incoming webhook** and set `SLACK_WEBHOOK_URL`. Optionally set `APP_URL` and the SMTP variables.
-3. In the app, click **Watch this company**, then **Send test alert** to verify the webhook (the message is labelled TEST).
-4. For the daily run, add the same values as **GitHub repository secrets**. `watch_runner.py` scans at most 5 companies per run and refuses to run without Supabase, since there would be no stored previous scan to compare against.
-
-## 🤖 How Nemotron and Tavily are used
-
-### Nemotron (via Nebius Token Factory)
-
-Base URL: `https://api.tokenfactory.us-central1.nebius.com/v1/`. Three JSON-mode calls per investigation:
-
-1. **Hypothesis and counter-queries:** from numbered evidence (E1, E2, …) it returns one hypothesis, the supporting evidence IDs, and search queries designed to disprove it.
-2. **Adversarial classification:** given the "prove me wrong" results (A1, A2, …), it returns which ones contradict the hypothesis, plus an alternative explanation.
-3. **Narrative:** given the already-computed score and breakdown, it writes the executive summary, "Why not higher?" and recommendations.
-
-**Guardrails:** output is parsed robustly (code fences and `<think>` blocks stripped, one retry on invalid JSON). The model cites evidence by ID only. Python maps IDs back to the retrieved Tavily URLs, so a URL the model invents can never appear.
-
-### Tavily
-
-- **Discovery:** 4 parallel `advanced` searches (talent, product/pricing, customer friction, market/news) yield up to 20 sources, each classified Primary / Secondary / Community by domain.
-- **Evidence ledger:** a tab lists every retrieved source with its link.
-- **Adversarial search:** Nemotron-written counter-queries are run through Tavily to look for contradicting evidence.
-
-## 🔒 Security
-
-- Web content is wrapped in `<web_content>` delimiters and the model is told it is untrusted data. Model JSON is schema-checked, and evidence URLs come only from Tavily results.
-- All web and model text is HTML-escaped before rendering. Only `http`/`https` links are rendered as links.
-- Company input is validated (max 60 characters), snapshot keys are slugged, and each session is limited to 5 investigations.
-- Error messages are redacted of configured keys.
-- Keep `.env` and `secrets.toml` out of version control (already in `.gitignore`).
-
-## ⚠️ Limitations
-
-- Hypotheses are inferences from public web snippets, not facts. Wording is "consistent with", never "proves".
-- Tavily snippets are short and often undated, so the recency factor is frequently low-information.
+- Hypotheses are inferences from public web snippets, not facts.
+- Tavily snippets are short and often undated, so the recency factor is often low-information.
 - Source type is classified by domain heuristics and can be wrong.
-- Change detection compares source URLs only; it does not diff page content. The first scan only saves a baseline.
-- There is no background monitoring beyond the daily watchlist job.
-- Entity-name collisions (e.g. a company with a common-word name) can pollute results.
-- Without Supabase, data lives in a local JSON file, which is ephemeral on Streamlit Community Cloud.
+- Change detection compares source URLs only, not page content. The first scan only saves a baseline.
+- Alerts fire on rescans (manual or daily), not in real time.
+- Companies with common-word names can pull in unrelated results.
+- Without Supabase, data lives in local JSON files, which are wiped when Streamlit Community Cloud restarts.
 
-## 🗂️ Project layout
+## Team
 
-```text
-├── app.py                  # Streamlit app: run flow, session limits, results layout
-├── ai_engine.py            # Nemotron calls, evidence-ID resolution, Python confidence score
-├── search_engine.py        # Tavily streams, retries/timeouts, snapshots, diffing
-├── track_record.py         # Predictions, outcomes, 90-day expiry, learning rule
-├── alerts.py               # Watchlist, alert triggers, Slack/email delivery
-├── watch_runner.py         # Headless daily rescan used by GitHub Actions
-├── store.py                # Table store: Supabase or local JSON fallback
-├── config.py               # st.secrets / env config, DEMO_SIMULATION flag
-├── ui_theme.py             # Kolam theme: CSS + HTML/SVG components (all text escaped)
-├── ui_art.py               # Decorative folk-art side panels (original SVG)
-├── check_models.py         # Lists available Nemotron model IDs on Nebius
-├── test_logic.py           # Offline tests
-├── supabase_schema.sql     # predictions, watchlist, alert_log tables
-├── Dockerfile              # Production image
-├── docker-compose.yml      # One-command container run
-├── deploy.sh               # Nebius Cloud VM bootstrap
-├── .env.example            # Environment variable template
-├── .streamlit/             # Theme config and secrets template
-└── .github/workflows/      # Daily watchlist rescan
-```
+<TEAM_MEMBERS>
 
-## 🪔 About the names
-
-Section names come from **Nyaya**, classical Indian logic, which required arguing against your own position (*Purva Paksha*) before reaching a verdict (*Nirnaya*). English is always the main label in the app; the Sanskrit appears small beside it.
-
-| Sanskrit | Romanized | Meaning | Where it appears |
-|---|---|---|---|
-| अनुमान | Anumana | Inference | "Hypothesis — not fact" heading, "Form hypothesis" stage |
-| प्रमाण | Pramana | Valid means of knowing (evidence) | "Supporting evidence" heading, "Sort evidence" stage |
-| पूर्वपक्ष | Purva Paksha | The opposing position, argued first | "Self-challenge" heading, "Challenge hypothesis" stage |
-| निर्णय | Nirnaya | Conclusion, verdict | "Verdict · how the score was calculated" heading, "Verdict" stage |
-| स्मृति | Smriti | Memory, what is remembered | "Track record" heading |
-| गुप्तचर | Guptachar | Secret agent, scout | "Four agents in the field" heading on the live screen |
-
-In evidence tags, hovering "Official source" shows *Pratyaksha — direct evidence*; "News report" and "Community post" show *Shabda — reported testimony*.
-
-## 📄 License
+## License
 
 Released under the [MIT License](LICENSE).
