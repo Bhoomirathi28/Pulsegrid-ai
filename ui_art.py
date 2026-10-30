@@ -69,10 +69,10 @@ def _panel_svg() -> str:
 
 ART_CSS = """
 <style>
-.pg-art{position:fixed;top:0;bottom:0;width:clamp(0px,calc((100vw - 1080px) / 2 + 40px),340px);z-index:0;pointer-events:none;opacity:.15;overflow:hidden;}
+.pg-art{position:fixed;top:0;bottom:0;width:22vw;max-width:340px;z-index:0;pointer-events:none;opacity:.2;overflow:hidden;}
 .pg-art svg{width:100%;height:100%;display:block;}
-.pg-art.l{left:0;-webkit-mask-image:linear-gradient(to right,#000 35%,transparent 100%);mask-image:linear-gradient(to right,#000 35%,transparent 100%);}
-.pg-art.r{right:0;-webkit-mask-image:linear-gradient(to left,#000 35%,transparent 100%);mask-image:linear-gradient(to left,#000 35%,transparent 100%);}
+.pg-art.l{left:0;-webkit-mask-image:linear-gradient(to right,#000 20%,transparent 100%);mask-image:linear-gradient(to right,#000 20%,transparent 100%);}
+.pg-art.r{right:0;-webkit-mask-image:linear-gradient(to left,#000 20%,transparent 100%);mask-image:linear-gradient(to left,#000 20%,transparent 100%);}
 .pg-art.r svg{transform:scaleX(-1);}
 .stApp [data-testid="stMainBlockContainer"], .block-container{position:relative;z-index:1;}
 @media (max-width:900px){.pg-art{display:none;}}
