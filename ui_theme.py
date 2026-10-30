@@ -60,7 +60,11 @@ CSS = """
 header, footer, #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stHeader"],
 [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"]{display:none !important;}
 .stApp{background:var(--bg);color:var(--cream);font-family:'Mukta',sans-serif;}
-.block-container{max-width:1080px !important; padding:30px 5% 64px !important;}
+.block-container,[data-testid="stMainBlockContainer"]{max-width:1080px !important; padding:1rem 5% 64px !important;}
+/* style-only / fixed-layer injections take no space (no flex gap, no box) */
+[data-testid="stElementContainer"]:has(style:only-child),[data-testid="stElementContainer"]:has(iframe[height="0"]){display:none !important;}
+[data-testid="stElementContainer"]:has(.pg-strip),[data-testid="stElementContainer"]:has(.pg-art),[data-testid="stElementContainer"]:has(.splash){position:absolute !important;height:0 !important;margin:0 !important;padding:0 !important;border:0 !important;overflow:visible !important;}
+.block-container,[data-testid="stMainBlockContainer"],[data-testid="stMain"],[data-testid="stAppViewContainer"]{border:0 !important;box-shadow:none !important;}
 [data-testid="stVerticalBlock"]{gap:20px;}
 h1,h2,h3,.raj{font-family:'Rajdhani',sans-serif;}
 .mono{font-family:'JetBrains Mono',monospace;}

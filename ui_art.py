@@ -208,7 +208,7 @@ def _right() -> str:
 
 ART_CSS = """
 <style>
-.pg-art{position:fixed;top:0;bottom:0;width:22vw;max-width:340px;z-index:0;pointer-events:none;opacity:.18;overflow:hidden;}
+.pg-art{position:fixed;top:140px;bottom:0;width:22vw;max-width:340px;z-index:0;pointer-events:none;opacity:.18;overflow:hidden;}
 .pg-art svg{width:100%;height:100%;display:block;}
 .pg-art.l{left:0;-webkit-mask-image:linear-gradient(to right,#000 35%,transparent 100%);mask-image:linear-gradient(to right,#000 35%,transparent 100%);}
 .pg-art.r{right:0;-webkit-mask-image:linear-gradient(to left,#000 35%,transparent 100%);mask-image:linear-gradient(to left,#000 35%,transparent 100%);}
