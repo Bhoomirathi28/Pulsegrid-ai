@@ -63,6 +63,8 @@ header, footer, #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration
 [data-testid="stVerticalBlock"]{gap:20px;}
 h1,h2,h3,.raj{font-family:'Rajdhani',sans-serif;}
 .mono{font-family:'JetBrains Mono',monospace;}
+/* elements left over from the previous screen while a run is executing: hide instead of dimming */
+[data-stale="true"]{display:none !important;}
 .pg-strip{position:fixed;top:0;left:0;right:0;height:6px;z-index:999990;pointer-events:none;opacity:.55;
   background-image:radial-gradient(#E9A93B 1.3px, transparent 1.6px);background-size:14px 6px;}
 
@@ -73,6 +75,9 @@ h1,h2,h3,.raj{font-family:'Rajdhani',sans-serif;}
 .tracker{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px 10px;font:600 13px 'Rajdhani',sans-serif;letter-spacing:.14em;text-transform:uppercase;}
 .tracker .done{color:var(--green-t);} .tracker .cur{color:var(--turm);} .tracker .up{color:var(--muted);opacity:.75;}
 .tracker .dash{display:inline-block;width:22px;height:1px;background:var(--line2);}
+@media (max-width:640px){.st-key-navbar{gap:14px !important;justify-content:flex-start !important;}
+  [class*="st-key-nav_"] button{font-size:12px !important;letter-spacing:.06em !important;padding:4px 0 !important;min-width:0 !important;}
+  [class*="st-key-nav_"]{width:auto !important;min-width:0 !important;}}
 @media (max-width:640px){.tracker{justify-content:flex-start;font-size:12px;letter-spacing:.1em;} .tracker .dash{width:10px;}}
 
 /* buttons */
@@ -261,6 +266,8 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .hero5{display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start;}
 .hero5 .l{flex:3 1 440px;min-width:0;} .hero5 .r{flex:2 1 300px;min-width:0;}
 .hyp{font:600 clamp(26px,4vw,42px)/1.15 'Rajdhani',sans-serif;color:var(--cream);margin:12px 0 18px;}
+.hyp.long{font-size:clamp(22px,3vw,32px);line-height:1.2;}
+.rstatus + *{margin-top:0;} .rstatus{margin-bottom:14px;}
 .facts5{font:400 13px 'JetBrains Mono',monospace;color:var(--text2);} .facts5 b{color:var(--cream);font-weight:500;}
 .bignum{font:600 88px/1 'Rajdhani',sans-serif;color:var(--cream);margin-top:6px;} .bignum small{font-size:36px;color:var(--muted);margin-left:2px;}
 .scale5{position:relative;margin-top:16px;} .scale5 .segs{display:flex;gap:3px;}
@@ -547,7 +554,7 @@ def hero_html(d: Dict[str, Any]) -> str:
     names = "".join(f'<span class="{"on" if n == name else ""}" style="width:{hi - lo}%">{n}</span>' for n, lo, hi in BANDS5)
     return f"""<div class="hero5"><div class="l">
 <div class="lab turm">Hypothesis — not fact<span class="sk">अनुमान Anumana</span></div>
-<div class="hyp">{esc(d['hypothesis'])}</div>
+<div class="hyp{' long' if len(d['hypothesis']) > 140 else ''}">{esc(d['hypothesis'])}</div>
 <div class="facts5">{' · '.join(facts)}</div></div>
 <div class="r"><div class="lab">Confidence</div><div class="bignum">{score:g}<small>%</small></div>
 <div class="scale5"><div class="segs">{segs}</div><span class="mk" style="left:calc({min(score, 100):g}% - 1.5px)"></span></div>

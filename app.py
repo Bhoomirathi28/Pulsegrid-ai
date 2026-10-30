@@ -58,7 +58,7 @@ def header(screen: str) -> None:
         if screen in FLOW[1:]:
             ui.render(ui.tracker_html(FLOW.index(screen)))
         else:
-            with st.container(horizontal=True, horizontal_alignment="right", gap="medium"):
+            with st.container(key="navbar", horizontal=True, horizontal_alignment="right", gap="medium"):
                 for key, label in NAV:
                     st.button(label, key=f"nav_{key}", type="tertiary", on_click=go, args=(key,))
     ui.render(ui.hair_html())
