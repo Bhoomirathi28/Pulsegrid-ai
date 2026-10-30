@@ -93,7 +93,7 @@ button[data-testid^="stBaseButton-secondary"]:hover{border-color:var(--turm-t) !
 button[data-testid="stBaseButton-tertiary"]{background:transparent !important;border:0 !important;color:var(--muted) !important;min-height:40px;padding:4px 2px !important;}
 button[data-testid="stBaseButton-tertiary"]:hover{color:var(--turm-t) !important;}
 [class*="st-key-nav_"] button{min-height:34px !important;border-radius:0 !important;border-bottom:2px solid transparent !important;font-size:14px !important;}
-[class*="st-key-chip_"] button{min-height:34px !important;padding:2px 14px !important;border-radius:999px !important;font:400 13px 'JetBrains Mono',monospace !important;text-transform:none;letter-spacing:0;}
+[class*="st-key-chip_"] button{background:#FFFDF8 !important;min-height:34px !important;padding:2px 14px !important;border-radius:999px !important;font:400 13px 'JetBrains Mono',monospace !important;text-transform:none;letter-spacing:0;}
 [class*="st-key-chip_"] button p{font:inherit !important;}
 [data-testid="stForm"]{border:0 !important;padding:0 !important;}
 
@@ -234,6 +234,11 @@ a.src{color:var(--turm-t);text-decoration:none;word-break:break-all;} a.src:hove
 .st-key-inv_col{max-width:860px;margin:24px auto 0;}
 .istatus{font:400 13px 'JetBrains Mono',monospace;color:var(--green-t);} .istatus.bad{color:var(--red-t);}
 .ih1{font:700 clamp(34px,5.6vw,54px)/1.08 'Rajdhani',sans-serif;color:var(--cream);margin:18px 0 14px;}
+.icenter{text-align:center;} .icenter .p2{max-width:640px;margin:0 auto;}
+.logotile{width:64px;height:64px;border-radius:16px;background:#1B2246;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;box-shadow:0 2px 6px rgba(27,34,70,.18);}
+.st-key-inv_col [data-testid="stForm"]{background:#FFFDF8;border:1px solid var(--line) !important;border-radius:20px;padding:10px !important;box-shadow:0 2px 10px rgba(27,34,70,.08);}
+.st-key-inv_col [data-testid="stTextInputRootElement"],.st-key-inv_col [data-baseweb="input"],.st-key-inv_col [data-baseweb="base-input"]{background:transparent !important;border:0 !important;}
+.st-key-inv_col [data-testid="stFormSubmitButton"] button{border-radius:14px;}
 .st-key-inv_col [data-testid="stTextInput"] input{height:56px;font-size:16px !important;}
 .st-key-inv_col [data-testid="stFormSubmitButton"] button{min-height:58px;}
 .try{font:400 13px 'JetBrains Mono',monospace;color:var(--muted);}
@@ -327,6 +332,11 @@ LOGO_SM = """<svg width="30" height="30" viewBox="0 0 40 40" aria-hidden="true">
 <g fill="#1B2246"><circle cx="12" cy="12" r="2.2"/><circle cx="28" cy="12" r="2.2"/><circle cx="12" cy="28" r="2.2"/><circle cx="28" cy="28" r="2.2"/></g>
 <circle cx="20" cy="20" r="3.4" fill="#B8761A"/></svg>"""
 
+LOGO_TILE = """<div class="logotile"><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true">
+<polygon points="20,3 37,20 20,37 3,20" fill="none" stroke="#E9A93B" stroke-width="2"/>
+<g fill="#F7F1E6"><circle cx="12" cy="12" r="2.2"/><circle cx="28" cy="12" r="2.2"/><circle cx="12" cy="28" r="2.2"/><circle cx="28" cy="28" r="2.2"/></g>
+<circle cx="20" cy="20" r="3.4" fill="#E9A93B"/></svg></div>"""
+
 STEPS = ["Investigate", "Thinking", "Results", "Actions"]
 
 
@@ -392,8 +402,8 @@ def investigate_top_html(tavily_ok: bool, nebius_ok: bool, model: str, simulated
         t = "Tavily ready" if tavily_ok else "Tavily not configured"
         n = f"{esc(model)} on Nebius ready" if nebius_ok else "Nebius not configured"
         status = f'<div class="istatus bad">● NOT CONFIGURED · {t} · {n}</div>'
-    return f"""{status}<div class="ih1">Name a company.<br>Watch the agent argue with itself.</div>
-<div class="p2">Four agents search the live web, one hypothesis forms, then PulseGrid tries to prove itself wrong before it gives you a verdict.</div>"""
+    return f"""<div class="icenter">{LOGO_TILE}{status}<div class="ih1">Name a company.<br>Watch the agent argue with itself.</div>
+<div class="p2">Four agents search the live web, one hypothesis forms, then PulseGrid tries to prove itself wrong before it gives you a verdict.</div></div>"""
 
 
 PILLARS = [("Four live streams", "Hiring, product and pricing, customer friction and market news, searched in parallel with Tavily."),
