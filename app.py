@@ -23,6 +23,7 @@ import alerts
 import store
 from search_engine import make_slug
 import ui_theme as ui
+import ui_art
 
 st.set_page_config(page_title="PulseGrid AI", page_icon="⚡", layout="wide", initial_sidebar_state="collapsed")
 ui.inject_theme()
@@ -473,6 +474,7 @@ if screen in ("results", "actions") and not has_results():
     screen = st.session_state.screen = "investigate"
 
 ui.render(ui.strip_html())
+ui.render(ui_art.art_html())
 ui.render(ui.screen_css(dotted=screen in ("investigate", "thinking"),
                         active_nav=screen if screen in dict(NAV) else ""))
 if SIMULATED:
