@@ -34,9 +34,9 @@ FLOW = ["investigate", "thinking", "results", "actions"]
 NAV = [("investigate", "Investigate"), ("watchlist", "Watchlist"), ("track_record", "Track record")]
 
 for key, default in (("screen", "splash"), ("search_data", None), ("dossier_content", None), ("active_company", ""),
-                     ("run_error", None), ("run_count", 0), ("suggestions", []), ("saved_prediction", None),
-                     ("track_error", None), ("alert_msg", None), ("pending_company", None), ("form_error", None), ("scan_n", None),
-                     ("run", None), ("run_log", [])):
+                     ("run_count", 0), ("suggestions", []), ("saved_prediction", None),
+                     ("track_error", None), ("pending_company", None), ("form_error", None), ("scan_n", None),
+                     ("run", None), ("run_log", []), ("page_error", None)):
     if key not in st.session_state:
         st.session_state[key] = default
 
@@ -371,8 +371,18 @@ def screen_actions() -> None:
     ui.render(ui.kolam_footer_html())
 
 
+def rescan(name: str) -> None:
+    if not start_investigation(name):  # same validation + session limit as the investigate screen
+        st.session_state.page_error, st.session_state.form_error = st.session_state.form_error, None
+
+
 def page_watchlist() -> None:
-    ui.render(ui.section_label("Watchlist"))
+    ui.render(ui.page_head_html("Watchlist", "Companies you are watching",
+                                "A rescan runs the full investigation again and checks whether an alert should fire."))
+    ui.render(ui.channels_html(alerts.slack_configured(), alerts.email_configured()))
+    if st.session_state.page_error:
+        st.error(st.session_state.page_error)
+        st.session_state.page_error = None
     try:
         rows = alerts.list_watched()
     except Exception as e:
@@ -380,16 +390,33 @@ def page_watchlist() -> None:
         st.warning(f"Watchlist unavailable: {redact(e)}")
     if not rows:
         ui.render('<div class="empty">No companies watched yet. Investigate a company and click Watch.</div>')
+    else:
+        ui.render('<div class="hair" style="margin:0"></div>')
     for r in rows:
-        ui.render(f'<div class="p2">{ui.esc(r.get("company_name"))}</div>')
-    if st.button("Send test alert"):
+        c_info, c_btns = st.columns([3, 2], vertical_alignment="center")
+        with c_info:
+            ui.render(ui.watch_row_html(r))
+        with c_btns:
+            with st.container(horizontal=True, horizontal_alignment="right", gap="small"):
+                st.button("Rescan now", key=f"rescan_{r['id']}", on_click=rescan, args=(r.get("company_name", ""),))
+                if st.button("Stop watching", key=f"stop_{r['id']}", type="tertiary"):
+                    alerts.unwatch(r["company_slug"])
+                    st.rerun()
+        ui.render('<div class="hair" style="margin:0"></div>')
+    ui.render(ui.spacer(12))
+    if st.button("Send test alert", key="test_alert"):
         try:
-            st.toast("TEST alert sent via " + ", ".join(alerts.test_alert(st.session_state.active_company or "Test company")))
+            st.success("TEST alert sent via " + ", ".join(alerts.test_alert(st.session_state.active_company or "Test company")))
         except PulseGridError as e:
             st.error(str(e))
+    st.caption("Alerts fire on rescans (manual here, or the daily GitHub Action), not in real time. "
+               "A test alert is clearly labelled TEST and says no real change was detected.")
 
 
 def page_track_record() -> None:
+    ui.render(ui.page_head_html("Track record", "Past hypotheses and what actually happened",
+                                "Every live investigation is saved as a prediction. Outcomes are only recorded when you accept or enter them.",
+                                "स्मृति Smriti"))
     if st.session_state.suggestions:
         ui.render(ui.section_label("Earlier predictions new evidence may resolve"))
         for i, sg in enumerate(st.session_state.suggestions):

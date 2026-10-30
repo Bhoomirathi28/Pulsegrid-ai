@@ -15,7 +15,7 @@ import streamlit as st
 
 from ai_engine import SOURCE_WEIGHT, _age_days
 
-# Switch to st.markdown(..., unsafe_allow_html=True) here if st.html ever drops something.
+# st.markdown, not st.html: st.html strips the inline SVG the kolam needs.
 def render(markup: str, target=None) -> None:
     (target or st).markdown(_flat(markup), unsafe_allow_html=True)
 
@@ -86,7 +86,6 @@ button[data-testid^="stBaseButton-secondary"]{background:transparent !important;
 button[data-testid^="stBaseButton-secondary"]:hover{border-color:var(--turm) !important;color:var(--turm2) !important;}
 button[data-testid="stBaseButton-tertiary"]{background:transparent !important;border:0 !important;color:var(--muted) !important;min-height:40px;padding:4px 2px !important;}
 button[data-testid="stBaseButton-tertiary"]:hover{color:var(--turm2) !important;}
-.turm-outline button{border-color:var(--turm) !important;color:var(--turm) !important;}
 [class*="st-key-nav_"] button{min-height:34px !important;border-radius:0 !important;border-bottom:2px solid transparent !important;font-size:14px !important;}
 [class*="st-key-chip_"] button{min-height:34px !important;padding:2px 14px !important;border-radius:999px !important;font:400 13px 'JetBrains Mono',monospace !important;text-transform:none;letter-spacing:0;}
 [class*="st-key-chip_"] button p{font:inherit !important;}
@@ -235,6 +234,11 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .pillars{display:flex;gap:32px;flex-wrap:wrap;} .pillar{flex:1 1 220px;min-width:0;}
 .pillar .pt{font-size:14px;line-height:1.55;color:var(--muted);margin-top:8px;}
 
+/* pages */
+.wrow{padding:12px 0;} .wrow .wn{font:600 19px 'Rajdhani',sans-serif;color:var(--cream);}
+.wrow .em{font:400 12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px;}
+[class*="st-key-rescan_"] button,[class*="st-key-stop_"] button{min-height:40px !important;font-size:13px !important;}
+
 /* actions */
 .rcards{display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;}
 .rcard{flex:1 1 260px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:22px;background:var(--inset);}
@@ -300,14 +304,6 @@ def inject_theme() -> None:
 
 
 # ------------------------------------------------------------------ header
-LOGO = """<svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
-<polygon points="24,3 45,24 24,45 3,24" fill="none" stroke="#F3EBDD" stroke-width="1.6" opacity=".7"/>
-<rect x="9" y="9" width="30" height="30" rx="9" fill="none" stroke="#E9A93B" stroke-width="2"/>
-<g fill="#F3EBDD"><circle cx="14" cy="14" r="1.8"/><circle cx="24" cy="14" r="1.8"/><circle cx="34" cy="14" r="1.8"/>
-<circle cx="14" cy="24" r="1.8"/><circle cx="34" cy="24" r="1.8"/><circle cx="14" cy="34" r="1.8"/>
-<circle cx="24" cy="34" r="1.8"/><circle cx="34" cy="34" r="1.8"/></g><circle cx="24" cy="24" r="3.4" fill="#E9A93B"/></svg>"""
-
-
 def section_label(english: str, devanagari: str = "", roman: str = "", small: bool = False) -> str:
     """Heading used everywhere: English first and primary; Sanskrit (if any) after it, smaller and quieter."""
     sk = f'<span class="sk">{esc(devanagari)} {esc(roman)}</span>' if devanagari else ""
@@ -491,17 +487,6 @@ def _domain(url: str) -> str:
     return urlparse(url).netloc.lower().removeprefix("www.")
 
 
-def tag_html(source_type: str) -> str:
-    """Plain-English evidence tag; the Sanskrit term lives only in the hover tooltip."""
-    if source_type == "Primary":
-        text, tip = "Official source", "Pratyaksha — direct evidence"
-    elif source_type == "Community":
-        text, tip = "Community post", "Shabda — reported testimony"
-    else:
-        text, tip = "News report", "Shabda — reported testimony"
-    return f'<span class="tag" title="{esc(tip)}">{text}</span>'
-
-
 # ------------------------------------------------------------------ screen 4: results
 # Display bands for the score. The score itself is computed in ai_engine.compute_confidence.
 BANDS5 = [("Unsupported", 0, 25), ("Speculative", 25, 45), ("Plausible", 45, 65), ("Likely", 65, 85), ("Confirmed", 85, 100)]
@@ -677,6 +662,29 @@ def how_it_ran_html(d: Dict[str, Any], sd: Dict[str, Any], events: Optional[List
     return timeline + under_hood_html(d, sd)
 
 
+# ------------------------------------------------------------------ pages: watchlist / track record
+def page_head_html(label: str, title: str, line: str, sanskrit: str = "") -> str:
+    sk = f'<span class="sk">{esc(sanskrit)}</span>' if sanskrit else ""
+    return (f'<div class="lab turm">{esc(label)}{sk}</div><div class="h1t">{esc(title)}</div>'
+            f'<div class="p2" style="color:var(--muted)">{esc(line)}</div>')
+
+
+def channels_html(slack_ok: bool, email_ok: bool) -> str:
+    def one(name, ok):
+        return (f'<span style="color:var(--green-t)">● {name} connected</span>' if ok
+                else f'<span style="color:var(--muted)">○ {name} not configured</span>')
+    return f'<div class="rstatus">{one("Slack", slack_ok)}<span>·</span>{one("Email", email_ok)}</div>'
+
+
+def watch_row_html(r: Dict[str, Any]) -> str:
+    move = r.get("conf_move")
+    weight = r.get("min_weight")
+    meta = (f'alert at ±{move:g} pts' if isinstance(move, (int, float)) else "alert at —") + " · " + \
+           (f'min weight {weight:g}' if isinstance(weight, (int, float)) else "min weight —") + \
+           f' · added {esc(str(r.get("created_at") or "—")[:10])}'
+    return f'<div class="wrow"><div class="wn">{esc(r.get("company_name"))}</div><div class="em">{meta}</div></div>'
+
+
 # ------------------------------------------------------------------ smriti / track record
 _STATUS_COLOR = {"pending": "#A7ACC8", "confirmed": "#7FD8A4", "refuted": "#FF9B8F", "expired": "#59618F"}
 
@@ -717,21 +725,16 @@ def smriti_html(rows: List[Dict[str, Any]], stats: List[Dict[str, Any]], backend
     else:
         stable = ""
     note = "" if backend == "supabase" else '<div class="cap" style="margin-top:8px">Stored in a local file (Supabase not configured) — history resets if the server restarts.</div>'
-    return f"""<div class="panel">{section_label("Track record", "स्मृति", "Smriti")}<div class="cap" style="margin-top:4px">Past hypotheses and what actually happened.</div>{note}
+    return f"""<div class="panel">{section_label("Predictions", small=True)}{note}
 <div style="margin-top:14px">{table}</div>
 <div style="margin-top:28px">{section_label("Pattern stats", small=True)}</div>
 <div class="cap" style="margin-top:4px">Confidence for a pattern is adjusted (max ±10) only after 5 resolved predictions with that pattern and industry.</div>
 <div style="margin-top:10px">{stable or '<div class="empty">No patterns yet.</div>'}</div></div>"""
 
 
-# ------------------------------------------------------------------ results layout (summary / tabs / actions)
+# ------------------------------------------------------------------ helpers
 def spacer(px: int = 32) -> str:
     return f'<div style="height:{px}px"></div>'
-
-
-def label(text: str, sanskrit: str = "") -> str:
-    sk = f'<span class="sk">{esc(sanskrit)}</span>' if sanskrit else ""
-    return f'<div class="label">{esc(text)}{sk}</div>'
 
 
 # ------------------------------------------------------------------ screen 5: actions
