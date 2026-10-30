@@ -49,12 +49,13 @@ CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Mukta:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 :root{
-  --bg:#1B2246; --line:#323C6E; --line2:#3E487C; --inset:rgba(11,16,38,0.35);
-  --panel:var(--inset); --panel2:var(--inset); --inner:var(--inset);
-  --cream:#F3EBDD; --text2:#C9C6D6; --muted:#A3A9C8; --foot:#9AA0C2; --turm:#E9A93B; --turm2:#F3C77A;
-  --green:#5CC489; --green-t:#7FD8A4; --green-bg:rgba(92,196,137,.08); --green-b:rgba(92,196,137,.28); --green-badge:rgba(92,196,137,.18);
-  --red:#EE6A5C; --red-t:#FF9B8F; --red-bg:rgba(238,106,92,.08); --red-b:rgba(238,106,92,.28); --red-badge:rgba(238,106,92,.18); --dot:#5C66A0;
-  --log-t:#5DCAA5; --log-n:#AFA9EC; --log-p:#E9A93B;
+  --bg:#F7F1E6; --line:#E6DCC8; --line2:#D9CCB2; --inset:#FFFDF8;
+  --panel:var(--inset); --panel2:var(--inset); --inner:#F7F1E6;
+  --cream:#1B2246; --text2:#4A5288; --muted:#6B6F8E; --foot:#6B6F8E;
+  --turm:#B8761A; --turm2:#8A560C; --turm-t:#8A560C; --fill:#E9A93B; --fill2:#F0BA5C;
+  --green:#2E7D4F; --green-t:#256B41; --green-bg:rgba(46,125,79,.07); --green-b:rgba(46,125,79,.30); --green-badge:rgba(46,125,79,.14);
+  --red:#B8402F; --red-t:#A53626; --red-bg:rgba(184,64,47,.06); --red-b:rgba(184,64,47,.30); --red-badge:rgba(184,64,47,.14); --dot:#C9C0AE;
+  --log-t:#1F6F78; --log-n:#5B4BA8; --log-p:#B8761A;
 }
 header, footer, #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stHeader"],
 [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"]{display:none !important;}
@@ -73,7 +74,7 @@ h1,h2,h3,.raj{font-family:'Rajdhani',sans-serif;}
 .brand .t{font:700 24px 'Rajdhani',sans-serif;color:var(--cream);line-height:1;letter-spacing:.02em;}
 .hair{border-bottom:1px solid var(--line);margin-top:-6px;}
 .tracker{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px 10px;font:600 13px 'Rajdhani',sans-serif;letter-spacing:.14em;text-transform:uppercase;}
-.tracker .done{color:var(--green-t);} .tracker .cur{color:var(--turm);} .tracker .up{color:var(--muted);opacity:.75;}
+.tracker .done{color:var(--green-t);} .tracker .cur{color:var(--turm-t);} .tracker .up{color:var(--muted);opacity:.75;}
 .tracker .dash{display:inline-block;width:22px;height:1px;background:var(--line2);}
 @media (max-width:640px){.st-key-navbar{gap:14px !important;justify-content:flex-start !important;}
   [class*="st-key-nav_"] button{font-size:12px !important;letter-spacing:.06em !important;padding:4px 0 !important;min-width:0 !important;}
@@ -84,13 +85,13 @@ h1,h2,h3,.raj{font-family:'Rajdhani',sans-serif;}
 .stButton button, [data-testid="stDownloadButton"] button, [data-testid="stFormSubmitButton"] button{
   min-height:52px;border-radius:8px;font:700 15px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;transition:background .15s,border-color .15s,color .15s;}
 .stButton button p, [data-testid="stDownloadButton"] button p, [data-testid="stFormSubmitButton"] button p{font:inherit !important;letter-spacing:inherit;color:inherit;}
-button[data-testid^="stBaseButton-primary"]{background:var(--turm) !important;color:#1A1206 !important;border:1px solid var(--turm) !important;}
-button[data-testid^="stBaseButton-primary"]:hover{background:var(--turm2) !important;border-color:var(--turm2) !important;}
+button[data-testid^="stBaseButton-primary"]{background:var(--fill) !important;color:#1B2246 !important;border:1px solid var(--fill) !important;}
+button[data-testid^="stBaseButton-primary"]:hover{background:var(--fill2) !important;border-color:var(--fill2) !important;}
 button[data-testid^="stBaseButton-primary"]:disabled{opacity:.45;}
 button[data-testid^="stBaseButton-secondary"]{background:transparent !important;color:var(--cream) !important;border:1px solid var(--line2) !important;}
-button[data-testid^="stBaseButton-secondary"]:hover{border-color:var(--turm) !important;color:var(--turm2) !important;}
+button[data-testid^="stBaseButton-secondary"]:hover{border-color:var(--turm-t) !important;color:var(--turm-t) !important;}
 button[data-testid="stBaseButton-tertiary"]{background:transparent !important;border:0 !important;color:var(--muted) !important;min-height:40px;padding:4px 2px !important;}
-button[data-testid="stBaseButton-tertiary"]:hover{color:var(--turm2) !important;}
+button[data-testid="stBaseButton-tertiary"]:hover{color:var(--turm-t) !important;}
 [class*="st-key-nav_"] button{min-height:34px !important;border-radius:0 !important;border-bottom:2px solid transparent !important;font-size:14px !important;}
 [class*="st-key-chip_"] button{min-height:34px !important;padding:2px 14px !important;border-radius:999px !important;font:400 13px 'JetBrains Mono',monospace !important;text-transform:none;letter-spacing:0;}
 [class*="st-key-chip_"] button p{font:inherit !important;}
@@ -100,16 +101,16 @@ button[data-testid="stBaseButton-tertiary"]:hover{color:var(--turm2) !important;
 [data-testid="stTextInput"] label p{font:600 12px 'Rajdhani',sans-serif !important;letter-spacing:.14em;text-transform:uppercase;color:var(--muted) !important;}
 [data-testid="stTextInput"] input{height:52px;background:transparent !important;border:0 !important;color:var(--cream) !important;font-family:'JetBrains Mono',monospace !important;font-size:15px !important;}
 [data-testid="stTextInputRootElement"],[data-baseweb="input"],[data-baseweb="base-input"]{background:var(--inset) !important;border:1px solid var(--line2) !important;border-radius:8px !important;}
-[data-baseweb="input"]:focus-within{border-color:var(--turm) !important;}
+[data-baseweb="input"]:focus-within{border-color:var(--turm-t) !important;}
 [data-testid="stTextInput"] input::placeholder{color:var(--muted) !important;opacity:.75;}
 [data-testid="InputInstructions"]{display:none;}
 
 /* common */
-.eyebrow{font:600 14px 'Mukta',sans-serif;color:var(--turm);letter-spacing:.04em;}
+.eyebrow{font:600 14px 'Mukta',sans-serif;color:var(--turm-t);letter-spacing:.04em;}
 .label{font:600 13px 'Rajdhani',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
 .h1{font:600 clamp(26px,3.4vw,40px)/1.15 'Rajdhani',sans-serif;color:var(--cream);margin:8px 0 12px;}
 .p2{color:var(--text2);font-size:16px;line-height:1.6;}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:30px;}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(27,34,70,.06);padding:30px;}
 .panel.alt{background:var(--panel2);}
 .row2{display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;}
 .row2 > .col{flex:1 1 360px;min-width:0;}
@@ -117,7 +118,7 @@ button[data-testid="stBaseButton-tertiary"]:hover{color:var(--turm2) !important;
 /* screen 1 */
 .agent{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:13px;}
 .agent .n{color:var(--cream);letter-spacing:.06em;} .agent .n i{color:var(--muted);font-style:normal;}
-.st-done{color:var(--green-t);} .st-run{color:var(--turm2);} .st-wait{color:var(--muted);}
+.st-done{color:var(--green-t);} .st-run{color:var(--turm-t);} .st-wait{color:var(--muted);}
 .stage{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:14px 0;border-bottom:1px solid var(--line);}
 .stages{border-top:1px solid var(--line);margin-top:24px;}
 .stage .en{flex:1 1 100%;font:600 15px 'Rajdhani',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--cream);}
@@ -139,8 +140,8 @@ button[data-testid="stBaseButton-tertiary"]:hover{color:var(--turm2) !important;
 .hero .main{flex:2 1 460px;} .hero .side{flex:1 1 280px;position:relative;overflow:hidden;min-height:260px;}
 .hero .side svg{position:absolute;inset:0;width:100%;height:100%;opacity:.28;}
 .hero .side .in{position:relative;text-align:center;padding:12px 0;}
-.big{font:700 84px/1 'Rajdhani',sans-serif;color:var(--cream);} .big small{font-size:34px;color:var(--turm2);margin-left:2px;}
-.pill{display:inline-block;background:#3A2C10;color:var(--turm2);font:600 13px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:5px 14px;border-radius:999px;margin:10px 0;}
+.big{font:700 84px/1 'Rajdhani',sans-serif;color:var(--cream);} .big small{font-size:34px;color:var(--turm-t);margin-left:2px;}
+.pill{display:inline-block;background:#F5DFA9;color:#6B4208;font:600 13px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:5px 14px;border-radius:999px;margin:10px 0;}
 .cap{font-size:13px;color:var(--muted);}
 .stitle{font:700 18px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--cream);}
 .stitle .sub{font:400 13px 'Mukta',sans-serif;letter-spacing:0;text-transform:none;color:var(--muted);margin-left:8px;}
@@ -151,7 +152,7 @@ button[data-testid="stBaseButton-tertiary"]:hover{color:var(--turm2) !important;
 .ev .cl{font-size:15px;line-height:1.5;color:var(--cream);}
 .ev .mt{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px;font:400 12px 'JetBrains Mono',monospace;color:var(--muted);}
 .ev .tag{font:600 12px 'Rajdhani',sans-serif;letter-spacing:.08em;padding:2px 8px;border-radius:4px;background:var(--inner);color:var(--text2);}
-a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover{text-decoration:underline;}
+a.src{color:var(--turm-t);text-decoration:none;word-break:break-all;} a.src:hover{text-decoration:underline;}
 .qbox{border:1px dashed var(--line2);border-radius:10px;padding:14px 16px;margin-top:14px;font:400 12px 'JetBrains Mono',monospace;color:var(--muted);}
 .qbox div{margin-top:6px;color:var(--text2);}
 .empty{color:var(--muted);font-size:14px;margin-top:12px;}
@@ -159,21 +160,21 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .fac .top span:last-child{font-family:'JetBrains Mono',monospace;color:var(--cream);}
 .bar{height:6px;border-radius:3px;background:var(--inner);margin-top:6px;overflow:hidden;} .bar i{display:block;height:100%;border-radius:3px;}
 .why{background:var(--inner);border:1px solid var(--line);border-radius:10px;padding:18px;margin-top:22px;}
-.why .k{font:700 14px 'Rajdhani',sans-serif;letter-spacing:.12em;color:var(--turm);text-transform:uppercase;}
+.why .k{font:700 14px 'Rajdhani',sans-serif;letter-spacing:.12em;color:var(--turm-t);text-transform:uppercase;}
 .why p{margin:8px 0 0;color:var(--text2);line-height:1.6;font-size:15px;}
 .watch{display:flex;gap:14px;margin-top:14px;color:var(--text2);line-height:1.55;font-size:15px;}
-.watch b{flex:0 0 28px;height:28px;border-radius:50%;border:1px solid var(--turm);color:var(--turm);display:flex;align-items:center;justify-content:center;font:700 14px 'Rajdhani',sans-serif;}
+.watch b{flex:0 0 28px;height:28px;border-radius:50%;border:1px solid var(--turm);color:var(--turm-t);display:flex;align-items:center;justify-content:center;font:700 14px 'Rajdhani',sans-serif;}
 [data-testid="stExpander"]{background:var(--panel);border:1px solid var(--line);border-radius:10px;}
 [data-testid="stExpander"] summary p{font:700 14px 'Rajdhani',sans-serif !important;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
 .sim-banner{background:#DC2626;color:#fff;font:700 clamp(18px,3vw,28px) 'Rajdhani',sans-serif;letter-spacing:.1em;text-align:center;padding:14px;border-radius:10px;}
 .tt{width:100%;border-collapse:collapse;font-size:14px;min-width:560px;}
 .tt th{font:600 12px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
 .tt td{padding:10px;border-bottom:1px solid var(--line);color:var(--text2);vertical-align:top;}
-.sk{font:400 12px 'Mukta',sans-serif;letter-spacing:0;color:#A3A9C8;margin-left:10px;text-transform:none;}
+.sk{font:400 12px 'Mukta',sans-serif;letter-spacing:0;color:#6B6F8E;margin-left:10px;text-transform:none;}
 .sl{font:600 16px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--cream);line-height:1.35;}
 .sl.sm{font-size:14px;}
-.foot{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);font:400 12px 'Mukta',sans-serif;color:#A3A9C8;line-height:1.6;}
-.foot .info{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border:1px solid #A3A9C8;border-radius:50%;font-size:11px;margin-right:8px;cursor:help;}
+.foot{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);font:400 12px 'Mukta',sans-serif;color:#6B6F8E;line-height:1.6;}
+.foot .info{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border:1px solid #6B6F8E;border-radius:50%;font-size:11px;margin-right:8px;cursor:help;}
 .tag[title]{cursor:help;}
 @media (max-width:640px){.sl .sk{display:block;margin-left:0;margin-top:2px;}}
 [role="tablist"]{gap:28px;border-bottom:1px solid var(--line);background:transparent !important;}
@@ -190,11 +191,11 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .scale-wrap .mk{position:absolute;top:8px;width:3px;height:16px;background:var(--turm);border-radius:2px;}
 .scale-l{display:flex;font:500 11px 'JetBrains Mono',monospace;color:var(--muted);margin-top:6px;}
 .facts{font:400 13px 'JetBrains Mono',monospace;color:var(--text2);margin-top:24px;padding-top:16px;border-top:1px solid var(--line);display:flex;gap:10px 22px;flex-wrap:wrap;}
-.facts b{color:var(--turm2);font-weight:500;}
+.facts b{color:var(--turm-t);font-weight:500;}
 .outc{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;}
 .qrow{display:flex;gap:14px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line);align-items:baseline;}
 .qrow .qt{flex:0 0 118px;font:500 12px 'JetBrains Mono',monospace;color:var(--muted);} .qrow .qq{flex:1 1 260px;font:400 13px 'JetBrains Mono',monospace;color:var(--cream);}
-.warn{background:#3A2C10;color:var(--turm2);border-radius:8px;padding:10px 14px;font-size:14px;margin-top:12px;}
+.warn{background:#F5DFA9;color:#6B4208;border-radius:8px;padding:10px 14px;font-size:14px;margin-top:12px;}
 
 /* thinking */
 .mono-sm{font:400 13px 'JetBrains Mono',monospace;color:var(--muted);}
@@ -202,12 +203,12 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .stages2{margin-top:24px;border-top:1px solid var(--line);}
 .srow{display:flex;gap:14px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--line);}
 .sdot{flex:0 0 10px;height:10px;margin-top:6px;border-radius:50%;background:var(--dot);}
-.sdot.done{background:var(--green);} .sdot.running{background:var(--turm);animation:pulse 1.4s ease-in-out infinite;} .sdot.failed{background:var(--red);}
+.sdot.done{background:var(--green);} .sdot.running{background:var(--fill);animation:pulse 1.4s ease-in-out infinite;} .sdot.failed{background:var(--red);}
 .srow .sb{flex:1 1 auto;min-width:0;}
 .srow .sn{font:600 15px 'Rajdhani',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--cream);}
 .srow .sd{font:400 12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px;}
 .srow .ss{flex:0 0 auto;font:500 11px 'JetBrains Mono',monospace;letter-spacing:.08em;color:var(--muted);margin-top:4px;}
-.ss.done{color:var(--green-t);} .ss.running{color:var(--turm);} .ss.failed{color:var(--red-t);}
+.ss.done{color:var(--green-t);} .ss.running{color:var(--turm-t);} .ss.failed{color:var(--red-t);}
 .legend{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;font-size:13px;color:var(--muted);margin-top:14px;}
 .legend b{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;}
 .st-key-see_results button{min-height:60px !important;font-size:17px !important;}
@@ -215,7 +216,7 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 
 /* splash */
 .splash{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 16px;
-  background:radial-gradient(rgba(243,235,221,0.06) 1.2px, transparent 1.4px) #1B2246;background-size:28px 28px;
+  background:radial-gradient(rgba(184,118,26,0.10) 1.2px, transparent 1.4px) #F7F1E6;background-size:28px 28px;
   animation:spOut .45s ease 2s forwards;}
 @keyframes spOut{to{opacity:0;visibility:hidden;}}
 .spd{opacity:0;animation:spIn .3s ease forwards;}
@@ -224,7 +225,7 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .sp-t{font:700 clamp(40px,9vw,56px)/1 'Rajdhani',sans-serif;color:var(--cream);margin-top:22px;}
 .sp-s{font-size:16px;color:var(--text2);margin-top:10px;}
 .sp-bar{width:220px;max-width:70vw;height:3px;border-radius:2px;background:var(--line);overflow:hidden;margin:28px auto 14px;}
-.sp-bar i{display:block;height:100%;width:0;background:var(--turm);animation:spFill 2s linear forwards;}
+.sp-bar i{display:block;height:100%;width:0;background:var(--fill);animation:spFill 2s linear forwards;}
 @keyframes spFill{to{width:100%;}}
 .sp-m{font:400 11px 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--muted);}
 @media (prefers-reduced-motion:reduce){.splash{display:none !important;}}
@@ -246,8 +247,8 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 
 /* actions */
 .rcards{display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;}
-.rcard{flex:1 1 260px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:22px;background:var(--inset);}
-.rcard .rn{display:inline-flex;width:30px;height:30px;border-radius:50%;border:1px solid var(--turm);color:var(--turm);align-items:center;justify-content:center;font:700 15px 'Rajdhani',sans-serif;}
+.rcard{flex:1 1 260px;min-width:0;border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(27,34,70,.06);padding:22px;background:var(--inset);}
+.rcard .rn{display:inline-flex;width:30px;height:30px;border-radius:50%;border:1px solid var(--turm);color:var(--turm-t);align-items:center;justify-content:center;font:700 15px 'Rajdhani',sans-serif;}
 .rcard .rt{font:600 22px/1.2 'Rajdhani',sans-serif;color:var(--cream);margin-top:14px;}
 .rcard .rw{font-size:15px;line-height:1.55;color:var(--text2);margin-top:8px;}
 .rcard .rr{font:400 12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:16px;padding-top:12px;border-top:1px solid var(--line);}
@@ -256,11 +257,11 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .arow .am{flex:0 0 16px;font:600 15px 'JetBrains Mono',monospace;} .am.ok{color:var(--green-t);} .am.fail{color:var(--red-t);} .am.none{color:var(--muted);}
 .arow .al{font:600 14px 'Rajdhani',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--cream);}
 .arow .at{font:400 12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px;word-break:break-word;}
-.st-key-dl_report button{border-color:var(--turm) !important;color:var(--turm) !important;}
+.st-key-dl_report button{border-color:var(--turm-t) !important;color:var(--turm-t) !important;}
 
 /* results */
 .lab{font:600 13px 'Rajdhani',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
-.lab.turm{color:var(--turm);} .lab.green{color:var(--green-t);} .lab.red{color:var(--red-t);}
+.lab.turm{color:var(--turm-t);} .lab.green{color:var(--green-t);} .lab.red{color:var(--red-t);}
 .rstatus{display:flex;gap:8px 10px;flex-wrap:wrap;font:400 13px 'JetBrains Mono',monospace;color:var(--muted);}
 .rstatus .live{color:var(--green-t);} .rstatus .sim{font-size:12px;padding:2px 8px;}
 .hero5{display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start;}
@@ -271,11 +272,11 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .facts5{font:400 13px 'JetBrains Mono',monospace;color:var(--text2);} .facts5 b{color:var(--cream);font-weight:500;}
 .bignum{font:600 88px/1 'Rajdhani',sans-serif;color:var(--cream);margin-top:6px;} .bignum small{font-size:36px;color:var(--muted);margin-left:2px;}
 .scale5{position:relative;margin-top:16px;} .scale5 .segs{display:flex;gap:3px;}
-.scale5 .segs i{display:block;height:4px;border-radius:2px;background:var(--line2);} .scale5 .segs i.on{background:rgba(233,169,59,.45);}
+.scale5 .segs i{display:block;height:4px;border-radius:2px;background:var(--line2);} .scale5 .segs i.on{background:rgba(184,118,26,.35);}
 .scale5 .mk{position:absolute;top:-6px;width:3px;height:16px;border-radius:2px;background:var(--turm);}
 .names5{display:flex;gap:3px;margin-top:8px;font:600 12px 'Rajdhani',sans-serif;letter-spacing:.02em;color:var(--muted);}
-.names5 span{white-space:nowrap;} .names5 .on{color:var(--turm);}
-.bandline{font:600 17px 'Rajdhani',sans-serif;letter-spacing:.04em;color:var(--turm);margin-top:14px;}
+.names5 span{white-space:nowrap;} .names5 .on{color:var(--turm-t);}
+.bandline{font:600 17px 'Rajdhani',sans-serif;letter-spacing:.04em;color:var(--turm-t);margin-top:14px;}
 .cols2{display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start;} .cols2 > .col{flex:1 1 340px;min-width:0;}
 .erows{margin-top:10px;border-top:1px solid var(--line);}
 .erow{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line);}
@@ -286,14 +287,14 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .erow .ew{flex:0 0 auto;font:500 12px 'JetBrains Mono',monospace;color:var(--green-t);margin-top:3px;}
 .erow.con .ew{color:var(--red-t);}
 .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
-.pill5{font:600 12px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:999px;border:1px solid var(--turm);color:var(--turm);}
+.pill5{font:600 12px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:999px;border:1px solid var(--turm);color:var(--turm-t);}
 .pill5.off{border-color:var(--line2);color:var(--muted);opacity:.6;}
-.inset{background:var(--inset);border:1px solid var(--line);border-radius:8px;padding:18px 20px;}
+.inset{background:var(--inset);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(27,34,70,.06);padding:18px 20px;}
 .inset p{margin:8px 0 0;color:var(--text2);line-height:1.6;font-size:15px;}
 .fac .bar i{background:var(--turm);}
 .ul{margin:10px 0 0;padding-left:18px;color:var(--text2);font-size:14px;line-height:1.6;} .ul li{margin-top:6px;}
 .qblock{margin-bottom:22px;} .qhead{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--line);}
-.qhead .qn{font:600 13px 'Rajdhani',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--turm);}
+.qhead .qn{font:600 13px 'Rajdhani',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--turm-t);}
 .qhead .qq{flex:1 1 240px;font:400 13px 'JetBrains Mono',monospace;color:var(--cream);}
 .qhead .qc{font:400 12px 'JetBrains Mono',monospace;color:var(--muted);}
 .log{background:var(--inset);border:1px solid var(--line);border-radius:8px;padding:14px 16px;font:400 12px/1.7 'JetBrains Mono',monospace;color:var(--text2);max-height:300px;overflow-y:auto;}
@@ -322,9 +323,9 @@ def sim_banner_html() -> str:
 
 
 LOGO_SM = """<svg width="30" height="30" viewBox="0 0 40 40" aria-hidden="true">
-<polygon points="20,3 37,20 20,37 3,20" fill="none" stroke="#E9A93B" stroke-width="2"/>
-<g fill="#F3EBDD"><circle cx="12" cy="12" r="2.2"/><circle cx="28" cy="12" r="2.2"/><circle cx="12" cy="28" r="2.2"/><circle cx="28" cy="28" r="2.2"/></g>
-<circle cx="20" cy="20" r="3.4" fill="#E9A93B"/></svg>"""
+<polygon points="20,3 37,20 20,37 3,20" fill="none" stroke="#B8761A" stroke-width="2"/>
+<g fill="#1B2246"><circle cx="12" cy="12" r="2.2"/><circle cx="28" cy="12" r="2.2"/><circle cx="12" cy="28" r="2.2"/><circle cx="28" cy="28" r="2.2"/></g>
+<circle cx="20" cy="20" r="3.4" fill="#B8761A"/></svg>"""
 
 STEPS = ["Investigate", "Thinking", "Results", "Actions"]
 
@@ -337,11 +338,11 @@ def screen_css(dotted: bool, active_nav: str = "") -> str:
     """Per-screen CSS: faint kolam dot grid on some screens, turmeric underline on the active nav item."""
     css = ""
     if dotted:
-        css += (".stApp{background-image:radial-gradient(rgba(243,235,221,0.06) 1.2px, transparent 1.4px);"
+        css += (".stApp{background-image:radial-gradient(rgba(184,118,26,0.10) 1.2px, transparent 1.4px);"
                 "background-size:28px 28px;}")
     if active_nav:
         css += (f".st-key-nav_{active_nav} button{{color:var(--cream) !important;"
-                "border-bottom-color:var(--turm) !important;}")
+                "border-bottom-color:var(--turm-t) !important;}")
     return f"<style>{css}</style>"
 
 
@@ -370,13 +371,13 @@ def hair_html() -> str:
 def splash_html() -> str:
     """CSS-only overlay: the logo draws itself, the bar fills over 2s, then it fades out (no blocking sleep)."""
     pts = [(26, 26), (66, 26), (106, 26), (106, 66), (106, 106), (66, 106), (26, 106), (26, 66)]
-    dots = "".join(f'<circle class="spd" style="animation-delay:{0.08 + i * 0.09:.2f}s" cx="{x}" cy="{y}" r="4.2" fill="#F3EBDD"/>'
+    dots = "".join(f'<circle class="spd" style="animation-delay:{0.08 + i * 0.09:.2f}s" cx="{x}" cy="{y}" r="4.2" fill="#1B2246"/>'
                    for i, (x, y) in enumerate(pts))
     return f"""<div class="splash" aria-hidden="true"><div class="sp-in">
 <svg width="132" height="132" viewBox="0 0 132 132">{dots}
-<polygon class="sp-draw" style="animation-delay:.8s" pathLength="1" points="66,8 124,66 66,124 8,66" fill="none" stroke="#E9A93B" stroke-width="2.2"/>
-<path class="sp-draw" style="animation-delay:1.05s" pathLength="1" d="M66,44 C88,44 88,44 88,66 C88,88 88,88 66,88 C44,88 44,88 44,66 C44,44 44,44 66,44 Z" fill="none" stroke="#F3EBDD" stroke-width="1.8"/>
-<circle class="spd" style="animation-delay:1.3s" cx="66" cy="66" r="6" fill="#E9A93B"/></svg>
+<polygon class="sp-draw" style="animation-delay:.8s" pathLength="1" points="66,8 124,66 66,124 8,66" fill="none" stroke="#B8761A" stroke-width="2.2"/>
+<path class="sp-draw" style="animation-delay:1.05s" pathLength="1" d="M66,44 C88,44 88,44 88,66 C88,88 88,88 66,88 C44,88 44,88 44,66 C44,44 44,44 66,44 Z" fill="none" stroke="#1B2246" stroke-width="1.8"/>
+<circle class="spd" style="animation-delay:1.3s" cx="66" cy="66" r="6" fill="#B8761A"/></svg>
 <div class="sp-t">PulseGrid AI</div><div class="sp-s">Competitive intelligence that argues with itself</div>
 <div class="sp-bar"><i></i></div><div class="sp-m">TAVILY LIVE WEB · NVIDIA NEMOTRON ON NEBIUS</div></div></div>"""
 
@@ -441,20 +442,20 @@ def kolam_svg(n_sup: int, n_con: int, stages_done: int, running: bool) -> str:
         (x1, y1), (x2, y2) = _polar(ang - 38, 190), _polar(ang + 38, 190)
         cls = ' class="draw"' if k == stages_done - 1 else ""
         loops.append(f'<path pathLength="1"{cls} d="M200,200 C{x1:.1f},{y1:.1f} {x2:.1f},{y2:.1f} 200,200" fill="none" '
-                     f'stroke="#E9A93B" stroke-width="2.2" stroke-linecap="round"/>')
+                     f'stroke="#B8761A" stroke-width="2.2" stroke-linecap="round"/>')
     dots = []
     for idx, (x, y) in enumerate(order):
         if idx < n_sup:
-            dots.append(f'<circle cx="{x}" cy="{y}" r="6.5" fill="#5CC489"/>')
+            dots.append(f'<circle cx="{x}" cy="{y}" r="6.5" fill="#2E7D4F"/>')
         elif idx < n_sup + n_con:
-            dots.append(f'<rect x="{x - 5.5}" y="{y - 5.5}" width="11" height="11" fill="#EE6A5C" transform="rotate(45 {x} {y})"/>')
+            dots.append(f'<rect x="{x - 5.5}" y="{y - 5.5}" width="11" height="11" fill="#B8402F" transform="rotate(45 {x} {y})"/>')
         else:
-            dots.append(f'<circle cx="{x}" cy="{y}" r="4.5" fill="#5C66A0"/>')
+            dots.append(f'<circle cx="{x}" cy="{y}" r="4.5" fill="#C9C0AE"/>')
     pulse = ' class="pulse"' if running else ""
     centre = f'<circle{pulse} cx="200" cy="200" r="9" fill="#E9A93B"/>'
     return f"""<svg viewBox="0 0 400 400" width="100%" style="max-width:400px;display:block;margin:0 auto" role="img" aria-label="Kolam: {n_sup} supporting signals, {n_con} counter-evidence, {stages_done} of 6 stages done">
-<polygon points="200,30 370,200 200,370 30,200" fill="none" stroke="#F3EBDD" stroke-opacity=".14" stroke-dasharray="4 6"/>
-<circle cx="200" cy="200" r="150" fill="none" stroke="#F3EBDD" stroke-opacity=".14" stroke-dasharray="4 6"/>
+<polygon points="200,30 370,200 200,370 30,200" fill="none" stroke="#1B2246" stroke-opacity=".22" stroke-dasharray="4 6"/>
+<circle cx="200" cy="200" r="150" fill="none" stroke="#1B2246" stroke-opacity=".22" stroke-dasharray="4 6"/>
 {''.join(loops)}{''.join(dots)}{centre}</svg>"""
 
 
@@ -462,9 +463,9 @@ def kolam_panel_html(run: Dict[str, Any]) -> str:
     done = sum(1 for s in run["stages"] if s["status"] == "DONE")
     running = not run["done"] and not run["error"]
     return f"""{kolam_svg(run.get("sup", 0), run.get("con", 0), done, running)}
-<div class="legend"><span><b style="background:#5CC489"></b>supporting signal</span>
-<span><b style="background:#EE6A5C;border-radius:1px;transform:rotate(45deg)"></b>counter-evidence</span>
-<span><b style="background:#5C66A0"></b>no signal</span></div>"""
+<div class="legend"><span><b style="background:#2E7D4F"></b>supporting signal</span>
+<span><b style="background:#B8402F;border-radius:1px;transform:rotate(45deg)"></b>counter-evidence</span>
+<span><b style="background:#C9C0AE"></b>no signal</span></div>"""
 
 
 def thinking_left_html(run: Dict[str, Any]) -> str:
@@ -626,7 +627,7 @@ def selfchallenge_log_html(d: Dict[str, Any]) -> str:
     for i, q in enumerate(d.get("adversarial_log", []), 1):
         n_con = sum(1 for x in q["ids"] if x in con_ids)
         items = "".join(
-            f'<div class="qrow"><span class="qt" style="color:{"#FF9B8F" if x in con_ids else "#A3A9C8"}">'
+            f'<div class="qrow"><span class="qt" style="color:{"#A53626" if x in con_ids else "#6B6F8E"}">'
             f'{"contradicts" if x in con_ids else "neutral"}</span><span class="qq">{link(by_id[x]["url"], by_id[x]["title"] or _domain(by_id[x]["url"]))}</span></div>'
             for x in q["ids"] if x in by_id) or '<div class="empty">No results for this query.</div>'
         blocks.append(f'<div class="qblock"><div class="qhead"><span class="qn">Counter-search {i}</span>'
@@ -693,11 +694,11 @@ def watch_row_html(r: Dict[str, Any]) -> str:
 
 
 # ------------------------------------------------------------------ smriti / track record
-_STATUS_COLOR = {"pending": "#A7ACC8", "confirmed": "#7FD8A4", "refuted": "#FF9B8F", "expired": "#59618F"}
+_STATUS_COLOR = {"pending": "#6B6F8E", "confirmed": "#256B41", "refuted": "#A53626", "expired": "#6B6F8E"}
 
 
 def suggestion_html(sg: Dict[str, Any]) -> str:
-    color = "#7FD8A4" if sg["suggestion"] == "confirmed" else "#FF9B8F"
+    color = "#256B41" if sg["suggestion"] == "confirmed" else "#A53626"
     return f"""<div class="ev {'sup' if sg['suggestion'] == 'confirmed' else 'con'}"><div>
 <div class="label">Model suggestion · needs your review</div>
 <div class="cl" style="margin-top:6px">Earlier prediction: {esc(sg['hypothesis'])}</div>
@@ -713,7 +714,7 @@ def smriti_html(rows: List[Dict[str, Any]], stats: List[Dict[str, Any]], backend
             out = link(r["resolution_url"], _domain(r["resolution_url"])) if r.get("resolution_url") else ""
             trs.append(f'<tr><td class="mono">{esc(str(r.get("created_at", ""))[:10])}</td><td>{esc(r.get("company_name") or r.get("company_slug"))}</td>'
                        f'<td>{esc(r.get("hypothesis"))}</td><td class="mono">{esc(r.get("confidence"))}%</td>'
-                       f'<td class="mono" style="color:{_STATUS_COLOR.get(st_, "#A7ACC8")}">{esc(st_)}</td><td>{out}</td></tr>')
+                       f'<td class="mono" style="color:{_STATUS_COLOR.get(st_, "#6B6F8E")}">{esc(st_)}</td><td>{out}</td></tr>')
         table = ('<div class="svgbox"><table class="tt"><tr><th>Date</th><th>Company</th><th>Hypothesis</th><th>Conf.</th>'
                  f'<th>Status</th><th>Outcome</th></tr>{"".join(trs)}</table></div>')
     else:
