@@ -47,42 +47,56 @@ CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Mukta:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 :root{
-  --bg:#0B1026; --panel:#131A3C; --panel2:#10173A; --inner:#0E1430; --line:#252E5C; --line2:#333D72;
-  --cream:#F3EBDD; --text2:#C9C6D6; --muted:#A7ACC8; --turm:#E9A93B; --turm2:#F3C77A;
-  --green:#5CC489; --green-t:#7FD8A4; --green-bg:#12203A; --green-b:#23415A; --green-badge:#1E3B2C;
-  --red:#EE6A5C; --red-t:#FF9B8F; --red-bg:#2A1420; --red-b:#5A2A33; --red-badge:#4A1D24; --dot:#59618F;
+  --bg:#1B2246; --line:#323C6E; --line2:#3E487C; --inset:rgba(11,16,38,0.35);
+  --panel:var(--inset); --panel2:var(--inset); --inner:var(--inset);
+  --cream:#F3EBDD; --text2:#C9C6D6; --muted:#A3A9C8; --foot:#9AA0C2; --turm:#E9A93B; --turm2:#F3C77A;
+  --green:#5CC489; --green-t:#7FD8A4; --green-bg:rgba(92,196,137,.08); --green-b:rgba(92,196,137,.28); --green-badge:rgba(92,196,137,.18);
+  --red:#EE6A5C; --red-t:#FF9B8F; --red-bg:rgba(238,106,92,.08); --red-b:rgba(238,106,92,.28); --red-badge:rgba(238,106,92,.18); --dot:#5C66A0;
+  --log-t:#5DCAA5; --log-n:#AFA9EC; --log-p:#E9A93B;
 }
-header, footer, #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"],
+header, footer, #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stHeader"],
 [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"]{display:none !important;}
-.stApp{
-  background-color:var(--bg);
-  background-image:radial-gradient(rgba(243,235,221,0.09) 1.2px, transparent 1.4px);
-  background-size:28px 28px; color:var(--cream); font-family:'Mukta',sans-serif;
-}
-.block-container{max-width:1080px !important; padding:24px 5% 64px !important;}
-[data-testid="stVerticalBlock"]{gap:24px;}
+.stApp{background:var(--bg);color:var(--cream);font-family:'Mukta',sans-serif;}
+.block-container{max-width:1080px !important; padding:30px 5% 64px !important;}
+[data-testid="stVerticalBlock"]{gap:20px;}
 h1,h2,h3,.raj{font-family:'Rajdhani',sans-serif;}
 .mono{font-family:'JetBrains Mono',monospace;}
+.pg-strip{position:fixed;top:0;left:0;right:0;height:6px;z-index:999990;pointer-events:none;opacity:.55;
+  background-image:radial-gradient(#E9A93B 1.3px, transparent 1.6px);background-size:14px 6px;}
 
-/* header */
-.pg-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
-.pg-head .t{font:700 24px 'Rajdhani',sans-serif;color:var(--cream);line-height:1.1;}
-.pg-head .s{font-size:13px;color:var(--muted);}
-.pg-rule{border-bottom:1px solid var(--line);margin-top:-8px;}
+/* shared header */
+.brand{display:flex;align-items:center;gap:12px;}
+.brand .t{font:700 24px 'Rajdhani',sans-serif;color:var(--cream);line-height:1;letter-spacing:.02em;}
+.hair{border-bottom:1px solid var(--line);margin-top:-6px;}
+.tracker{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px 10px;font:600 13px 'Rajdhani',sans-serif;letter-spacing:.14em;text-transform:uppercase;}
+.tracker .done{color:var(--green-t);} .tracker .cur{color:var(--turm);} .tracker .up{color:var(--muted);opacity:.75;}
+.tracker .dash{display:inline-block;width:22px;height:1px;background:var(--line2);}
+@media (max-width:640px){.tracker{justify-content:flex-start;font-size:12px;letter-spacing:.1em;} .tracker .dash{width:10px;}}
+
+/* buttons */
+.stButton button, [data-testid="stDownloadButton"] button, [data-testid="stFormSubmitButton"] button{
+  min-height:52px;border-radius:8px;font:700 15px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;transition:background .15s,border-color .15s,color .15s;}
+.stButton button p, [data-testid="stDownloadButton"] button p, [data-testid="stFormSubmitButton"] button p{font:inherit !important;letter-spacing:inherit;color:inherit;}
+button[data-testid^="stBaseButton-primary"]{background:var(--turm) !important;color:#1A1206 !important;border:1px solid var(--turm) !important;}
+button[data-testid^="stBaseButton-primary"]:hover{background:var(--turm2) !important;border-color:var(--turm2) !important;}
+button[data-testid^="stBaseButton-primary"]:disabled{opacity:.45;}
+button[data-testid^="stBaseButton-secondary"]{background:transparent !important;color:var(--cream) !important;border:1px solid var(--line2) !important;}
+button[data-testid^="stBaseButton-secondary"]:hover{border-color:var(--turm) !important;color:var(--turm2) !important;}
+button[data-testid="stBaseButton-tertiary"]{background:transparent !important;border:0 !important;color:var(--muted) !important;min-height:40px;padding:4px 2px !important;}
+button[data-testid="stBaseButton-tertiary"]:hover{color:var(--turm2) !important;}
+.turm-outline button{border-color:var(--turm) !important;color:var(--turm) !important;}
+[class*="st-key-nav_"] button{min-height:34px !important;border-radius:0 !important;border-bottom:2px solid transparent !important;font-size:14px !important;}
+[class*="st-key-chip_"] button{min-height:34px !important;padding:2px 14px !important;border-radius:999px !important;font:400 13px 'JetBrains Mono',monospace !important;text-transform:none;letter-spacing:0;}
+[class*="st-key-chip_"] button p{font:inherit !important;}
+[data-testid="stForm"]{border:0 !important;padding:0 !important;}
+
+/* inputs */
 [data-testid="stTextInput"] label p{font:600 12px 'Rajdhani',sans-serif !important;letter-spacing:.14em;text-transform:uppercase;color:var(--muted) !important;}
-[data-testid="stTextInput"] input{height:44px;background:var(--inner) !important;border:1px solid var(--line2) !important;border-radius:6px !important;color:var(--cream) !important;font-family:'JetBrains Mono',monospace !important;font-size:14px !important;}
-[data-testid="stTextInput"] input:focus{border-color:var(--turm) !important;box-shadow:none !important;}
-.stButton > button, [data-testid="stDownloadButton"] button{
-  height:44px;border-radius:6px;font:700 15px 'Rajdhani',sans-serif;letter-spacing:.12em;text-transform:uppercase;transition:all .15s;}
-.stButton > button[kind="primary"]{background:var(--turm);color:#1A1206;border:1px solid var(--turm);}
-.stButton > button[kind="primary"]:hover{background:var(--turm2);border-color:var(--turm2);color:#1A1206;}
-.stButton > button[kind="secondary"]{background:transparent;color:var(--turm);border:1px solid var(--turm);}
-.stButton > button[kind="secondary"]:hover,[data-testid="stDownloadButton"] button:hover{background:rgba(233,169,59,.12);color:var(--turm2);border-color:var(--turm2);}
-[data-testid="stDownloadButton"] button{background:transparent;color:var(--muted);border:1px solid var(--line2);}
-[data-testid="stDownloadButton"] button p{color:inherit;}
-[data-testid="stTextInputRootElement"],[data-baseweb="input"],[data-baseweb="base-input"]{background:var(--inner) !important;border:1px solid var(--line2) !important;border-radius:6px !important;}
+[data-testid="stTextInput"] input{height:52px;background:transparent !important;border:0 !important;color:var(--cream) !important;font-family:'JetBrains Mono',monospace !important;font-size:15px !important;}
+[data-testid="stTextInputRootElement"],[data-baseweb="input"],[data-baseweb="base-input"]{background:var(--inset) !important;border:1px solid var(--line2) !important;border-radius:8px !important;}
 [data-baseweb="input"]:focus-within{border-color:var(--turm) !important;}
-[data-testid="stTextInput"] input::placeholder{color:var(--muted) !important;opacity:.7;}
+[data-testid="stTextInput"] input::placeholder{color:var(--muted) !important;opacity:.75;}
+[data-testid="InputInstructions"]{display:none;}
 
 /* common */
 .eyebrow{font:600 14px 'Mukta',sans-serif;color:var(--turm);letter-spacing:.04em;}
@@ -205,13 +219,49 @@ def sim_banner_html() -> str:
     return '<div class="sim-banner">SIMULATED DATA — NOT LIVE</div>'
 
 
-def header_html() -> str:
-    return f"""<div class="pg-head">{LOGO}<div><div class="t">PulseGrid AI</div>
-<div class="s">Competitive intelligence that argues with itself</div></div></div>"""
+LOGO_SM = """<svg width="30" height="30" viewBox="0 0 40 40" aria-hidden="true">
+<polygon points="20,3 37,20 20,37 3,20" fill="none" stroke="#E9A93B" stroke-width="2"/>
+<g fill="#F3EBDD"><circle cx="12" cy="12" r="2.2"/><circle cx="28" cy="12" r="2.2"/><circle cx="12" cy="28" r="2.2"/><circle cx="28" cy="28" r="2.2"/></g>
+<circle cx="20" cy="20" r="3.4" fill="#E9A93B"/></svg>"""
+
+STEPS = ["Investigate", "Thinking", "Results", "Actions"]
 
 
-def divider_html() -> str:
-    return '<div class="pg-rule"></div>'
+def strip_html() -> str:
+    return '<div class="pg-strip"></div>'
+
+
+def screen_css(dotted: bool, active_nav: str = "") -> str:
+    """Per-screen CSS: faint kolam dot grid on some screens, turmeric underline on the active nav item."""
+    css = ""
+    if dotted:
+        css += (".stApp{background-image:radial-gradient(rgba(243,235,221,0.06) 1.2px, transparent 1.4px);"
+                "background-size:28px 28px;}")
+    if active_nav:
+        css += (f".st-key-nav_{active_nav} button{{color:var(--cream) !important;"
+                "border-bottom-color:var(--turm) !important;}")
+    return f"<style>{css}</style>"
+
+
+def brand_html() -> str:
+    return f'<div class="brand">{LOGO_SM}<span class="t">PulseGrid AI</span></div>'
+
+
+def tracker_html(current: int) -> str:
+    """Step tracker: 0 Investigate · 1 Thinking · 2 Results · 3 Actions."""
+    parts = []
+    for i, name in enumerate(STEPS):
+        if i < current:
+            parts.append(f'<span class="done">✓ {name}</span>')
+        elif i == current:
+            parts.append(f'<span class="cur">● {name}</span>')
+        else:
+            parts.append(f'<span class="up">{name}</span>')
+    return '<div class="tracker">' + '<span class="dash"></span>'.join(parts) + "</div>"
+
+
+def hair_html() -> str:
+    return '<div class="hair"></div>'
 
 
 def idle_html(tavily_ok: bool, nebius_ok: bool, model: str) -> str:
