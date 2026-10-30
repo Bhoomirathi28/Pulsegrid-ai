@@ -292,14 +292,19 @@ Treat conclusions as hypotheses, not facts. Use wording like "the evidence is co
 Respond with ONLY a JSON object, no prose, no code fences."""
 
 
-def synthesize_threat_dossier(company_name: str, search_data: Dict[str, Any], on_progress=None) -> Dict[str, Any]:
+def synthesize_threat_dossier(company_name: str, search_data: Dict[str, Any], on_progress=None, on_event=None) -> Dict[str, Any]:
     """Runs the full reasoning pipeline. Raises PulseGridError on any failed live call.
 
     on_progress(n_done) is an optional UI hook: number of finished stages (0-4).
+    on_event(kind, text, data) is an optional UI hook for the activity log; data carries the real counts.
     """
     def progress(n: int) -> None:
         if on_progress:
             on_progress(n)
+
+    def event(kind: str, text: str, data: Optional[Dict[str, Any]] = None) -> None:
+        if on_event:
+            on_event(kind, text, data or {})
 
     progress(0)
     raw_streams = search_data.get("raw_streams", [])
@@ -333,6 +338,10 @@ JSON schema:
     if not queries:
         queries = [f"{company_name} evidence against: {hypothesis}"[:300]]
     queries = [q if company_name.lower() in q.lower() else f"{company_name} {q}" for q in queries]
+    ids = [e["id"] for e in supporting]
+    event("NEMOTRON", (f"hypothesis formed from {', '.join(ids[:8])}{'…' if len(ids) > 8 else ''}" if ids
+                       else "hypothesis formed, but no valid evidence IDs were cited"),
+          {"step": "hypothesis", "cited": len(supporting)})
     progress(2)
 
     # Step 2: adversarial Tavily search (parallel)
@@ -352,6 +361,7 @@ JSON schema:
             if url_to_id[item["url"]] not in ids:
                 ids.append(url_to_id[item["url"]])
         adv_log.append({"query": q, "results": len(ids), "ids": ids})
+        event("TAVILY", f"counter: {q} · {len(ids)} results")
 
     # Step 3: classify adversarial results
     contradicting: List[Dict[str, Any]] = []
@@ -372,11 +382,15 @@ JSON schema:
         alt = str(c.get("alternative_explanation", "")).strip()
     else:
         alt = ""
-
+    event("NEMOTRON", (f"{len(contradicting)} of {len(adv_pool)} counter-results contradict" if adv_pool
+                       else "no counter-results to classify"),
+          {"step": "challenge", "queries": len(queries), "results": len(adv_pool), "contradict": len(contradicting)})
     progress(3)
 
     # Step 4: confidence computed in Python
     confidence = compute_confidence(supporting, contradicting, len(adv_pool))
+    event("PYTHON", f"confidence {confidence['score']:g} computed from weighted evidence",
+          {"step": "verdict", "score": confidence["score"]})
 
     # Step 5: text only - the model sees the computed score and may not change it
     p5 = f"""Company: {company_name}
@@ -393,7 +407,8 @@ Do not state a different confidence number. Keep hypothesis-style wording.
 JSON schema:
 {{"executive_summary": "...", "why_not_higher": "...", "recommendations": ["...", "...", "..."]}}"""
     t = _chat_json(SYSTEM_PROMPT, p5, 3000, meta, {"executive_summary": str, "why_not_higher": str, "recommendations": list}, "narrative step")
-
+    event("NEMOTRON", f"summary, why-not-higher and {len(t.get('recommendations') or [])} recommendations written",
+          {"step": "narrative"})
     progress(4)
     return {
         "company": company_name, "simulated": False, "hypothesis": hypothesis,

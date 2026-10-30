@@ -163,8 +163,10 @@ def top_evidence(analysis: Dict[str, Any], n: int = 3) -> List[Dict[str, Any]]:
 
 
 def evaluate(company_name: str, slug: str, analysis: Dict[str, Any], diff: Dict[str, Any],
-             prev: Optional[Dict[str, Any]], prefs: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
-    """Returns an alert dict if any trigger fires, else None. `prev` = {'confidence': float} from the previous scan."""
+             prev: Optional[Dict[str, Any]], prefs: Optional[Dict[str, Any]] = None,
+             explain: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """Returns an alert dict if any trigger fires, else None. `prev` = {'confidence': float} from the previous scan.
+    If `explain` is a dict and nothing fires, explain['reason'] says why (for the UI)."""
     prefs = prefs or {}
     move = float(prefs.get("conf_move", CONF_MOVE))
     min_w = float(prefs.get("min_weight", NEW_SIGNAL_MIN_WEIGHT))
@@ -188,6 +190,18 @@ def evaluate(company_name: str, slug: str, analysis: Dict[str, Any], diff: Dict[
             keys.append(("new_signals", sorted(n["url"] for n in heavy)))
 
     if not reasons:
+        if explain is not None:
+            if prev and prev.get("confidence") is not None:
+                conf_txt = f"confidence {new_score - float(prev['confidence']):+.1f}"
+            else:
+                conf_txt = "no earlier confidence to compare"
+            if diff.get("first_scan"):
+                src_txt = "no earlier snapshot to compare sources"
+            elif min_w == NEW_SIGNAL_MIN_WEIGHT:
+                src_txt = "no new official/news sources"
+            else:
+                src_txt = f"no new sources with weight ≥ {min_w:g}"
+            explain["reason"] = f"No trigger: {conf_txt}, {src_txt}"
         return None
     if conf is None:
         conf = {"old": prev.get("confidence") if prev else None, "new": new_score,

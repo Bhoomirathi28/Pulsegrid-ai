@@ -192,6 +192,23 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .qrow .qt{flex:0 0 118px;font:500 12px 'JetBrains Mono',monospace;color:var(--muted);} .qrow .qq{flex:1 1 260px;font:400 13px 'JetBrains Mono',monospace;color:var(--cream);}
 .warn{background:#3A2C10;color:var(--turm2);border-radius:8px;padding:10px 14px;font-size:14px;margin-top:12px;}
 
+/* thinking */
+.mono-sm{font:400 13px 'JetBrains Mono',monospace;color:var(--muted);}
+.h1t{font:700 clamp(30px,4.4vw,44px)/1.1 'Rajdhani',sans-serif;color:var(--cream);margin:10px 0 10px;}
+.stages2{margin-top:24px;border-top:1px solid var(--line);}
+.srow{display:flex;gap:14px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--line);}
+.sdot{flex:0 0 10px;height:10px;margin-top:6px;border-radius:50%;background:var(--dot);}
+.sdot.done{background:var(--green);} .sdot.running{background:var(--turm);animation:pulse 1.4s ease-in-out infinite;} .sdot.failed{background:var(--red);}
+.srow .sb{flex:1 1 auto;min-width:0;}
+.srow .sn{font:600 15px 'Rajdhani',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--cream);}
+.srow .sd{font:400 12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px;}
+.srow .ss{flex:0 0 auto;font:500 11px 'JetBrains Mono',monospace;letter-spacing:.08em;color:var(--muted);margin-top:4px;}
+.ss.done{color:var(--green-t);} .ss.running{color:var(--turm);} .ss.failed{color:var(--red-t);}
+.legend{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;font-size:13px;color:var(--muted);margin-top:14px;}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+.st-key-see_results button{min-height:60px !important;font-size:17px !important;}
+@media (max-width:640px){.srow .sn .sk{display:block;margin-left:0;}}
+
 /* results */
 .lab{font:600 13px 'Rajdhani',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
 .lab.turm{color:var(--turm);} .lab.green{color:var(--green-t);} .lab.red{color:var(--red-t);}
@@ -315,13 +332,14 @@ def idle_html(tavily_ok: bool, nebius_ok: bool, model: str) -> str:
 <div class="status mono" style="justify-content:center;margin-top:18px">{t}<span>·</span>{n}</div></div>"""
 
 
-# ------------------------------------------------------------------ screen 1: live
-AGENTS = [("TALENT", "careers, roles"), ("PRODUCT", "pricing, docs"),
-          ("FRICTION", "forums, reviews"), ("MARKET", "news, funding")]
-STAGES = [("Sort evidence", "प्रमाण", "Pramana", "Seen directly, or reported by others"),
-          ("Form hypothesis", "अनुमान", "Anumana", "Connect the dots into one hypothesis"),
-          ("Challenge hypothesis", "पूर्वपक्ष", "Purva Paksha", "Search for evidence that proves it wrong"),
-          ("Verdict", "निर्णय", "Nirnaya", "Confidence, and what to watch")]
+# ------------------------------------------------------------------ screen 3: thinking
+# (English name, Devanagari, roman, detail template shown until real numbers arrive)
+STAGES = [("Search the live web", "गुप्तचर", "Guptachar", "4 parallel Tavily streams · — sources"),
+          ("Sort evidence", "प्रमाण", "Pramana", "Official — · News — · Community — · weighted"),
+          ("Form hypothesis", "अनुमान", "Anumana", "Nemotron cited — evidence items"),
+          ("Challenge hypothesis", "पूर्वपक्ष", "Purva Paksha", "— counter-searches · — results · — contradict"),
+          ("Verdict", "निर्णय", "Nirnaya", "Score computed in Python · — · —"),
+          ("Save and alert", "", "", "Prediction — · baseline — · alert check —")]
 
 _GRID = [(60 + 70 * i, 60 + 70 * j) for j in range(5) for i in range(5) if (i, j) != (2, 2)]
 
@@ -333,64 +351,70 @@ def _ring_order():
     return sorted(_GRID, key=key)
 
 
-def pulli_svg(lit: int, arriving: int, stages_done: int) -> str:
+def _polar(deg: float, r: float):
+    t = math.radians(deg)
+    return 200 + r * math.cos(t), 200 + r * math.sin(t)
+
+
+def kolam_svg(n_sup: int, n_con: int, stages_done: int, running: bool) -> str:
+    """Green dots = supporting items, red diamonds = contradicting items, one turmeric loop per finished stage.
+    All counts are real; the dot positions and loop shapes are decorative."""
     order = _ring_order()
-    lit = max(0, min(lit, len(order)))
-    arriving = max(0, min(arriving, len(order) - lit))
+    n_sup = max(0, min(n_sup, len(order)))
+    n_con = max(0, min(n_con, len(order) - n_sup))
+    loops = []
+    for k in range(min(stages_done, 6)):
+        ang = -90 + k * 60
+        (x1, y1), (x2, y2) = _polar(ang - 38, 190), _polar(ang + 38, 190)
+        cls = ' class="draw"' if k == stages_done - 1 else ""
+        loops.append(f'<path pathLength="1"{cls} d="M200,200 C{x1:.1f},{y1:.1f} {x2:.1f},{y2:.1f} 200,200" fill="none" '
+                     f'stroke="#E9A93B" stroke-width="2.2" stroke-linecap="round"/>')
     dots = []
     for idx, (x, y) in enumerate(order):
-        if idx < lit:
-            dots.append(f'<circle cx="{x}" cy="{y}" r="6" fill="#5CC489"/>')
-        elif idx < lit + arriving:
-            dots.append(f'<circle class="pulse" cx="{x}" cy="{y}" r="6" fill="#E9A93B"/>')
+        if idx < n_sup:
+            dots.append(f'<circle cx="{x}" cy="{y}" r="6.5" fill="#5CC489"/>')
+        elif idx < n_sup + n_con:
+            dots.append(f'<rect x="{x - 5.5}" y="{y - 5.5}" width="11" height="11" fill="#EE6A5C" transform="rotate(45 {x} {y})"/>')
         else:
-            dots.append(f'<circle cx="{x}" cy="{y}" r="4.5" fill="#59618F"/>')
-    # decorative kolam loops through the lit dots; count follows real stage progress
-    pts = order[:lit]
-    n_curves = min(max(len(pts) - 1, 0), 2 + stages_done * 4) if pts else 0
-    paths = []
-    for k in range(n_curves):
-        (x1, y1), (x2, y2) = pts[k], pts[k + 1]
-        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
-        cx, cy = mx + (200 - mx) * 0.55, my + (200 - my) * 0.55
-        cls = "draw" if k >= n_curves - 2 else ""
-        paths.append(f'<path pathLength="1" class="{cls}" d="M{x1},{y1} Q{cx:.1f},{cy:.1f} {x2},{y2}" fill="none" '
-                     f'stroke="#E9A93B" stroke-width="2.2" stroke-linecap="round"/>')
-    return f"""<svg viewBox="0 0 400 400" width="100%" style="max-width:440px;display:block;margin:0 auto" role="img" aria-label="Pulli kolam showing signals found so far">
+            dots.append(f'<circle cx="{x}" cy="{y}" r="4.5" fill="#5C66A0"/>')
+    pulse = ' class="pulse"' if running else ""
+    centre = f'<circle{pulse} cx="200" cy="200" r="9" fill="#E9A93B"/>'
+    return f"""<svg viewBox="0 0 400 400" width="100%" style="max-width:400px;display:block;margin:0 auto" role="img" aria-label="Kolam: {n_sup} supporting signals, {n_con} counter-evidence, {stages_done} of 6 stages done">
 <polygon points="200,30 370,200 200,370 30,200" fill="none" stroke="#F3EBDD" stroke-opacity=".14" stroke-dasharray="4 6"/>
 <circle cx="200" cy="200" r="150" fill="none" stroke="#F3EBDD" stroke-opacity=".14" stroke-dasharray="4 6"/>
-{''.join(paths)}{''.join(dots)}<circle cx="200" cy="200" r="9" fill="#E9A93B"/></svg>"""
+{''.join(loops)}{''.join(dots)}{centre}</svg>"""
 
 
-def live_html(stream_counts: Optional[List[int]], stages_done: int) -> str:
-    """stream_counts None = still searching. stages_done 0-4 = finished stages."""
+def kolam_panel_html(run: Dict[str, Any]) -> str:
+    done = sum(1 for s in run["stages"] if s["status"] == "DONE")
+    running = not run["done"] and not run["error"]
+    return f"""{kolam_svg(run.get("sup", 0), run.get("con", 0), done, running)}
+<div class="legend"><span><b style="background:#5CC489"></b>supporting signal</span>
+<span><b style="background:#EE6A5C;border-radius:1px;transform:rotate(45deg)"></b>counter-evidence</span>
+<span><b style="background:#5C66A0"></b>no signal</span></div>"""
+
+
+def thinking_left_html(run: Dict[str, Any]) -> str:
+    if run["error"]:
+        title = "The run stopped."
+        sub = "A live call failed. Nothing below was faked; the failed step is marked in red."
+    elif run["done"]:
+        title = "The pattern is complete."
+        sub = "Every number below came from a real call. The verdict is ready."
+    else:
+        title = "The pattern is being drawn."
+        sub = "Four agents search the live web, a hypothesis forms, then PulseGrid tries to prove itself wrong."
     rows = []
-    for i, (name, desc) in enumerate(AGENTS):
-        if stream_counts is None:
-            st_html = '<span class="st-run">● searching…</span>'
-        else:
-            st_html = f'<span class="st-done">✓ {int(stream_counts[i])} signals</span>'
-        rows.append(f'<div class="agent"><span class="n">{name} <i>· {desc}</i></span>{st_html}</div>')
-    stage_rows = []
-    searching_done = stream_counts is not None
-    for i, (en, dv, rm, ds) in enumerate(STAGES):
-        if i < stages_done:
-            s, cls = "DONE", "st-done"
-        elif i == stages_done and searching_done:
-            s, cls = "RUNNING", "st-run"
-        else:
-            s, cls = "WAITING", "st-wait"
-        stage_rows.append(f'<div class="stage"><span class="en">{esc(en)}<span class="sk">{esc(dv)} {esc(rm)}</span></span>'
-                          f'<span class="ds">{esc(ds)}</span><span class="stt {cls}">{s}</span></div>')
-    total = sum(stream_counts) if stream_counts else 0
-    svg = pulli_svg(total, 4 if stream_counts is None else 0, stages_done)
-    return f"""<div class="row2"><div class="col">
-{section_label("Four agents in the field", "गुप्तचर", "Guptachar")}<div class="h1" style="font-size:40px">The pattern is being drawn.</div>
-<div class="p2">Each agent searches one corner of the live web. Nothing is concluded until all four report.</div>
-<div style="margin-top:22px">{''.join(rows)}</div><div class="stages">{''.join(stage_rows)}</div></div>
-<div class="col"><div class="panel alt"><div class="svgbox">{svg}</div>
-<div class="legend"><span><b style="background:#5CC489"></b>confirmed signals</span><span><b style="background:#E9A93B"></b>arriving now</span><span><b style="background:#59618F"></b>no signal yet</span></div>
-<div class="cap" style="margin-top:14px">When the pattern closes, the hypothesis forms. Then it tries to prove itself wrong.</div></div></div></div>"""
+    for (en, dv, rm, _), stg in zip(STAGES, run["stages"]):
+        sk = f'<span class="sk">{esc(dv)} {esc(rm)}</span>' if dv else ""
+        cls = stg["status"].lower()
+        rows.append(f'<div class="srow"><span class="sdot {cls}"></span><div class="sb"><div class="sn">{esc(en)}{sk}</div>'
+                    f'<div class="sd">{esc(stg["detail"])}</div></div><span class="ss {cls}">{esc(stg["status"])}</span></div>')
+    log = "".join(_log_line(e) for e in run["events"]) or '<div class="ll"><span class="lx">waiting for the first result…</span></div>'
+    return f"""<div class="mono-sm">Investigating · {esc(run["company"])}</div>
+<div class="h1t">{title}</div><div class="p2">{sub}</div>
+<div class="stages2">{''.join(rows)}</div>
+<div class="lab" style="margin-top:28px">Activity log</div><div class="log" style="margin-top:10px">{log}</div>"""
 
 
 def _domain(url: str) -> str:

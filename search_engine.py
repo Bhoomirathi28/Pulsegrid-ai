@@ -246,12 +246,14 @@ def compute_snapshot_diff(previous_streams: Optional[List[Dict[str, Any]]],
 
 
 # ------------------------------------------------------------------ pipeline
-def run_pulsegrid_search(company_name: str) -> Dict[str, Any]:
+def run_pulsegrid_search(company_name: str, on_event=None) -> Dict[str, Any]:
     """
     1. Read previous snapshot (BEFORE writing).
     2. Run 4 Tavily streams in parallel (raises PulseGridError if any fail).
     3. Diff against previous snapshot.
     4. Save the new snapshot (skipped in simulation mode so fake data never pollutes the cache).
+
+    on_event(kind, text) is an optional UI hook, called from this thread as each stream returns.
     """
     slug = make_slug(company_name)
     simulated = simulation_enabled()
@@ -264,11 +266,15 @@ def run_pulsegrid_search(company_name: str) -> Dict[str, Any]:
         if warn:
             warnings.append(warn)
 
-    current: List[Dict[str, Any]] = []
+    slots: List[Optional[Dict[str, Any]]] = [None] * len(STREAMS)
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-        futures = [ex.submit(search_stream, company_name, cat, q) for cat, q in STREAMS]
-        for f in futures:
-            current.append(f.result())  # propagates PulseGridError; order preserved
+        futures = {ex.submit(search_stream, company_name, cat, q): i for i, (cat, q) in enumerate(STREAMS)}
+        for f in concurrent.futures.as_completed(futures):
+            res = f.result()  # propagates PulseGridError
+            slots[futures[f]] = res
+            if on_event:
+                on_event("TAVILY", f"{'[SIMULATED] ' if simulated else ''}{res['query']} · {len(res['results'])} results")
+    current: List[Dict[str, Any]] = [s for s in slots if s is not None]  # stream order preserved
 
     diff = compute_snapshot_diff(previous, current)
 
