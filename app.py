@@ -321,30 +321,39 @@ def screen_results() -> None:
 def screen_actions() -> None:
     d = st.session_state.dossier_content
     sd = st.session_state.search_data
-    ui.render(ui.watch_next_html(d))
-    slug_now = make_slug(st.session_state.active_company)
-    watched = False
-    try:
-        watched = alerts.is_watched(slug_now)
-    except Exception:
-        pass
-    if watched:
-        if st.button("Stop watching", type="primary"):
-            alerts.unwatch(slug_now)
-            st.rerun()
-    elif st.button("Watch this company", type="primary", disabled=d.get("simulated", False)):
+    ui.render(ui.actions_head_html(d))
+    ui.render(ui.rec_cards_html(d))
+    ui.render(ui.spacer(24))
+    c_log, c_keep = st.columns([3, 2], gap="large")
+    with c_log:
+        ui.render(ui.after_analysis_html(st.session_state.run_log))
+    with c_keep:
+        ui.render('<div class="lab">Keep an eye on it</div>')
+        slug_now = make_slug(st.session_state.active_company)
+        watched = False
         try:
-            alerts.watch(slug_now, st.session_state.active_company)
-            st.rerun()
+            watched = alerts.is_watched(slug_now)
         except Exception as e:
-            st.error(f"Could not save to watchlist: {redact(e)}")
-    if st.session_state.alert_msg:
-        st.caption(st.session_state.alert_msg)
-    st.download_button("Download report", data=dossier_to_markdown(d, sd["delta_highlights"]),
-                       file_name=f"{re.sub(r'[^a-z0-9]+', '_', st.session_state.active_company.lower())}_pulsegrid.md",
-                       mime="text/markdown")
-    st.button("New investigation", on_click=go, args=("investigate",))
-    st.button("← Back to results", type="tertiary", on_click=go, args=("results",))
+            st.warning(f"Watchlist unavailable: {redact(e)}")
+        if watched:
+            if st.button("Stop watching", key="unwatch", type="primary", use_container_width=True):
+                alerts.unwatch(slug_now)
+                st.rerun()
+        elif st.button("Watch this company", key="watch", type="primary", use_container_width=True,
+                       disabled=d.get("simulated", False)):
+            try:
+                alerts.watch(slug_now, st.session_state.active_company)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Could not save to watchlist: {redact(e)}")
+        st.download_button("Download report", key="dl_report", data=dossier_to_markdown(d, sd["delta_highlights"]),
+                           file_name=f"{re.sub(r'[^a-z0-9]+', '_', st.session_state.active_company.lower())}_pulsegrid.md",
+                           mime="text/markdown", use_container_width=True)
+        st.button("New investigation", key="new_inv", use_container_width=True, on_click=go, args=("investigate",))
+        st.caption("Alerts fire on rescans (manual or daily), not in real time.")
+    ui.render(ui.spacer(16))
+    st.button("← Back to results", key="back_results", type="tertiary", on_click=go, args=("results",))
+    ui.render(ui.kolam_footer_html())
 
 
 def page_watchlist() -> None:

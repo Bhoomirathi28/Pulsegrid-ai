@@ -403,12 +403,13 @@ FACTORS: {json.dumps([{"factor": b["label"], "value": b["value"], "note": b["not
 CAPS: {confidence['caps'] or 'none'}
 
 Write: a 2-3 sentence executive summary; a "Why not higher?" explanation (2-4 sentences) grounded in the weak factors above and the contradicting evidence; and 3 concrete recommendations for a competitor of {company_name}.
+Each recommendation: "action" = a short imperative title (under 10 words); "why" = one sentence; "evidence_ids" = the SUPPORTING IDs it responds to.
 Do not state a different confidence number. Keep hypothesis-style wording.
 JSON schema:
-{{"executive_summary": "...", "why_not_higher": "...", "recommendations": ["...", "...", "..."]}}"""
+{{"executive_summary": "...", "why_not_higher": "...", "recommendations": [{{"action": "...", "why": "...", "evidence_ids": ["E1"]}}]}}"""
     t = _chat_json(SYSTEM_PROMPT, p5, 3000, meta, {"executive_summary": str, "why_not_higher": str, "recommendations": list}, "narrative step")
-    event("NEMOTRON", f"summary, why-not-higher and {len(t.get('recommendations') or [])} recommendations written",
-          {"step": "narrative"})
+    recs = _resolve_recommendations(t.get("recommendations"), supporting)
+    event("NEMOTRON", f"summary, why-not-higher and {len(recs)} recommendations written", {"step": "narrative"})
     progress(4)
     return {
         "company": company_name, "simulated": False, "hypothesis": hypothesis,
@@ -420,9 +421,29 @@ JSON schema:
         "adversarial_log": adv_log,
         "alternative_explanation": alt, "links": links, "confidence": confidence,
         "why_not_higher": str(t.get("why_not_higher", "")).strip(),
-        "recommendations": [str(r) for r in (t.get("recommendations") or [])][:5],
+        "recommendations": [r["action"] for r in recs],
+        "recommendation_details": recs,
         "meta": meta,
     }
+
+
+def _resolve_recommendations(raw: Any, supporting: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Accepts {"action","why","evidence_ids"} objects or plain strings. Evidence IDs are kept only
+    if they are real supporting items; 'structured' is False for plain strings (no why / responds-to)."""
+    known = {e["id"] for e in supporting}
+    out = []
+    for r in (raw if isinstance(raw, list) else [])[:5]:
+        if isinstance(r, dict):
+            action = str(r.get("action", "")).strip()
+            ids = [str(i).strip() for i in (r.get("evidence_ids") if isinstance(r.get("evidence_ids"), list) else [])]
+            ids = list(dict.fromkeys(i for i in ids if i in known))
+            item = {"action": action, "why": str(r.get("why", "")).strip()[:300], "evidence_ids": ids, "structured": True}
+        else:
+            item = {"action": str(r).strip(), "why": "", "evidence_ids": [], "structured": False}
+        if item["action"]:
+            item["action"] = item["action"][:200]
+            out.append(item)
+    return out
 
 
 def dossier_to_markdown(d: Dict[str, Any], delta_highlights: List[str]) -> str:
@@ -432,6 +453,10 @@ def dossier_to_markdown(d: Dict[str, Any], delta_highlights: List[str]) -> str:
         return "\n".join(f"- [{e['source_type']}] {e['claim']} — [{e['title']}]({e['url']})" for e in items) or "- None found"
     c = d["confidence"]
     rows = "\n".join(f"| {b['label']} | {int(b['weight']*100)}% | {b['value']:.2f} | {b['points']} |" for b in c["breakdown"])
+    details = d.get("recommendation_details") or [{"action": r, "why": "", "evidence_ids": []} for r in d["recommendations"]]
+    recs = "\n".join(f"{i}. {r['action']}" + (f" — {r['why']}" if r.get("why") else "")
+                     + (f" (responds to {', '.join(r['evidence_ids'])})" if r.get("evidence_ids") else "")
+                     for i, r in enumerate(details, 1))
     return f"""{banner}# Threat Dossier: {d['company']}
 
 ## Summary
@@ -454,7 +479,7 @@ def dossier_to_markdown(d: Dict[str, Any], delta_highlights: List[str]) -> str:
 **Why not higher?** {d['why_not_higher']}
 
 ## Recommendations
-{chr(10).join(f"{i}. {r}" for i, r in enumerate(d['recommendations'], 1))}
+{recs}
 
 ## Changes since last scan
 {chr(10).join(f"- {h}" for h in delta_highlights)}

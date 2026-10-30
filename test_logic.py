@@ -193,4 +193,16 @@ assert alerts.send_if_new(al2) == ["fake"]
 alerts.watch("a", "A"); alerts.watch("a", "A")
 assert len(alerts.list_watched()) == 1 and alerts.is_watched("a")
 alerts.unwatch("a"); assert not alerts.is_watched("a")
+# "why nothing fired" explanation
+why = {}
+assert alerts.evaluate("A", "a", an(62, "Moderate"), nodiff, {"confidence": 58}, explain=why) is None
+assert why["reason"] == "No trigger: confidence +4.0, no new official/news sources"
 print("alert checks passed")
+
+# ---------------------------------------------------------------- recommendations: IDs mapped to real supporting items
+sup = [{"id": "E1"}, {"id": "E4"}]
+recs = ai._resolve_recommendations([{"action": "Ship X", "why": "because", "evidence_ids": ["E4", "E9", "E4"]}, "Plain string", {"why": "no action"}], sup)
+assert recs[0] == {"action": "Ship X", "why": "because", "evidence_ids": ["E4"], "structured": True}
+assert recs[1] == {"action": "Plain string", "why": "", "evidence_ids": [], "structured": False} and len(recs) == 2
+assert ai._resolve_recommendations("not a list", sup) == []
+print("recommendation checks passed")

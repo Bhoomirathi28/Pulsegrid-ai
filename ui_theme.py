@@ -209,6 +209,20 @@ a.src{color:var(--turm2);text-decoration:none;word-break:break-all;} a.src:hover
 .st-key-see_results button{min-height:60px !important;font-size:17px !important;}
 @media (max-width:640px){.srow .sn .sk{display:block;margin-left:0;}}
 
+/* actions */
+.rcards{display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;}
+.rcard{flex:1 1 260px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:22px;background:var(--inset);}
+.rcard .rn{display:inline-flex;width:30px;height:30px;border-radius:50%;border:1px solid var(--turm);color:var(--turm);align-items:center;justify-content:center;font:700 15px 'Rajdhani',sans-serif;}
+.rcard .rt{font:600 22px/1.2 'Rajdhani',sans-serif;color:var(--cream);margin-top:14px;}
+.rcard .rw{font-size:15px;line-height:1.55;color:var(--text2);margin-top:8px;}
+.rcard .rr{font:400 12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:16px;padding-top:12px;border-top:1px solid var(--line);}
+.arows{margin-top:10px;border-top:1px solid var(--line);}
+.arow{display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--line);}
+.arow .am{flex:0 0 16px;font:600 15px 'JetBrains Mono',monospace;} .am.ok{color:var(--green-t);} .am.fail{color:var(--red-t);} .am.none{color:var(--muted);}
+.arow .al{font:600 14px 'Rajdhani',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--cream);}
+.arow .at{font:400 12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px;word-break:break-word;}
+.st-key-dl_report button{border-color:var(--turm) !important;color:var(--turm) !important;}
+
 /* results */
 .lab{font:600 13px 'Rajdhani',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
 .lab.turm{color:var(--turm);} .lab.green{color:var(--green-t);} .lab.red{color:var(--red-t);}
@@ -664,9 +678,51 @@ def label(text: str, sanskrit: str = "") -> str:
     return f'<div class="label">{esc(text)}{sk}</div>'
 
 
-def watch_next_html(d: Dict[str, Any]) -> str:
-    items = "".join(f'<div class="watch"><b>{i}</b><span>{esc(r)}</span></div>' for i, r in enumerate(d["recommendations"], 1))
-    return f'{section_label("Watch next")}{items}'
+# ------------------------------------------------------------------ screen 5: actions
+def _stream_short(category: str) -> str:
+    return str(category or "").split(" & ")[0]
+
+
+def responds_to(rec: Dict[str, Any], supporting: List[Dict[str, Any]]) -> str:
+    by_id = {e["id"]: e for e in supporting}
+    items = [by_id[i] for i in rec.get("evidence_ids", []) if i in by_id]
+    if not items:
+        return "Responds to: —"
+    streams = list(dict.fromkeys(_stream_short(e["stream"]) for e in items))
+    return (f"Responds to: {len(items)} signal{'' if len(items) == 1 else 's'} · {', '.join(streams)} "
+            f"({', '.join(e['id'] for e in items)})")
+
+
+def actions_head_html(d: Dict[str, Any]) -> str:
+    score = d["confidence"]["score"]
+    return f"""<div class="lab turm">Recommended actions</div>
+<div class="h1t">What a competitor of {esc(d.get("company"))} could do next</div>
+<div class="p2" style="color:var(--muted)">Suggestions based on the evidence for a hypothesis at {score:g}% ({esc(band5(score)[0])}).
+Each one shows which signals it responds to. Not certainties.</div>"""
+
+
+def rec_cards_html(d: Dict[str, Any]) -> str:
+    recs = d.get("recommendation_details") or [{"action": r, "why": "", "evidence_ids": [], "structured": False}
+                                                for r in d.get("recommendations", [])]
+    cards = []
+    for i, r in enumerate(recs[:3], 1):
+        why = f'<div class="rw">{esc(r["why"])}</div>' if r.get("why") else ""
+        resp = f'<div class="rr">{esc(responds_to(r, d["supporting"]))}</div>' if r.get("structured") else ""
+        cards.append(f'<div class="rcard"><span class="rn">{i}</span><div class="rt">{esc(r["action"])}</div>{why}{resp}</div>')
+    return '<div class="rcards">' + ("".join(cards) or '<div class="empty">The model returned no recommendations.</div>') + "</div>"
+
+
+def after_analysis_html(run_log: List[Dict[str, Any]]) -> str:
+    marks = {"ok": ("✓", "ok"), "fail": ("✕", "fail"), "none": ("–", "none")}
+    rows = "".join(
+        f'<div class="arow"><span class="am {marks[r["mark"]][1]}">{marks[r["mark"]][0]}</span>'
+        f'<div><div class="al">{esc(r["label"])}</div><div class="at">{esc(r["text"])}</div></div></div>' for r in run_log) \
+        or '<div class="empty">—</div>'
+    return f'<div class="lab">After the analysis</div><div class="arows">{rows}</div>'
+
+
+def kolam_footer_html() -> str:
+    return '<div class="foot">Every kolam begins with dots. Every conclusion here begins with evidence.</div>'
 
 
 LOG_COLOR = {"TAVILY": "var(--log-t)", "NEMOTRON": "var(--log-n)", "PYTHON": "var(--log-p)"}
